@@ -1,0 +1,49 @@
+
+@import "tailwindcss";
+
+:root {
+  --background: #faf8f5;
+  --foreground: #30283a;
+
+  --kindred-purple: #75558c;
+  --kindred-purple-dark: #59406f;
+  --kindred-lavender: #e9e1f0;
+  --kindred-rose: #f2e1e2;
+  --kindred-cream: #faf8f5;
+  --kindred-border: #e9e3eb;
+  --kindred-muted: #827a89;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: #e9e1f0;
+  color: #30283a;
+}
