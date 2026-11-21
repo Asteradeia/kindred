@@ -15,6 +15,14 @@ import {
   subscribeToLikes,
 } from "@/app/lib/likes";
 import type { KindredPost } from "@/app/data/posts";
+import {
+  getCommentsForPost,
+  getComments,
+  addComment,
+  subscribeToComments,
+} from "@/app/lib/comments";
+
+import type { KindredComment } from "@/app/lib/comments";
 const suggestedCreators = [
   { name: "Moss & Moon", username: "@mossandmoon", letter: "M", color: "#e3eadc" },
   { name: "PaperCrow", username: "@papercrow", letter: "P", color: "#f0dfe8" },
@@ -32,6 +40,9 @@ export default function KindredHome() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [feedPosts, setFeedPosts] = useState<KindredPost[]>([]);
+  const [postComments, setPostComments] = useState<KindredComment[]>([]);
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [expandedComments, setExpandedComments] = useState<string[]>([]);
   useEffect(() => {
     const refreshBookmarks = () => {
       setBookmarkedPosts(getBookmarks().map((post) => String(post.id)));
@@ -59,6 +70,15 @@ useEffect(() => {
 
   const unsubscribe = subscribeToLikes(() => {
     setLikedPostIds(getLikedPosts());
+  });
+
+  return unsubscribe;
+}, []);
+useEffect(() => {
+  queueMicrotask(() => setPostComments(getComments()));
+
+  const unsubscribe = subscribeToComments(() => {
+    setPostComments(getComments());
   });
 
   return unsubscribe;
@@ -130,7 +150,30 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     getBookmarks().map((saved) => String(saved.id))
   );
 }
+function toggleComments(postId: string) {
+  setExpandedComments((previous) =>
+    previous.includes(postId)
+      ? previous.filter((id) => id !== postId)
+      : [...previous, postId]
+  );
+}
+function handleSubmitComment(postId: string) {
+  const content = commentInputs[postId]?.trim();
+  if (!content) return;
 
+  const newComment: KindredComment = {
+    id: Date.now().toString(),
+    postId,
+    username: "yourusername",
+    displayName: "Kellie",
+    avatar: "K",
+    content,
+    createdAt: new Date().toISOString(),
+  };
+
+  setPostComments(addComment(newComment));
+  setCommentInputs((previous) => ({ ...previous, [postId]: "" }));
+}
   function toggleFollow(username: string) {
     setFollowing((previous) =>
       previous.includes(username)
@@ -392,7 +435,12 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
   {likedPostIds.includes(String(post.id)) ? "♥" : "♡"}{" "}
   {post.likes + (likedPostIds.includes(String(post.id)) ? 1 : 0)}
 </button>
-                    <button className="text-sm text-[#827a89] hover:text-[#75558c]">○ {post.comments} comments</button>
+                    <button
+  onClick={() => toggleComments(String(post.id))}
+  className="text-sm text-[#827a89] hover:text-[#75558c]"
+>
+  ○ {postComments.filter((comment) => comment.postId === String(post.id)).length} comments
+</button>
                     <button className="text-sm text-[#827a89] hover:text-[#75558c]">↗ Share</button>
                   </div>
                   <button
@@ -408,6 +456,57 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
   {bookmarkedPosts.includes(String(post.id)) ? "♣" : "♧"}
 </button>
                 </div>
+              {expandedComments.includes(String(post.id)) && (
+                <div className="border-t border-[#e9e3eb] px-5 py-4">
+                  <div className="space-y-3">
+                    {postComments
+                      .filter((comment) => comment.postId === String(post.id))
+                      .map((comment) => (
+                        <div key={comment.id} className="flex gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e9e1f0] text-sm text-[#75558c]">
+                            {comment.avatar}
+                          </div>
+
+                          <div className="min-w-0 flex-1 rounded-2xl bg-[#faf8f5] px-3 py-2">
+                            <p className="text-xs font-medium">
+                              {comment.displayName}{" "}
+                              <span className="text-[#827a89]">@{comment.username}</span>
+                            </p>
+                            <p className="mt-1 text-sm">{comment.content}</p>
+                          </div>
+                        </div>
+                      ))}
+
+                    {postComments.filter((comment) => comment.postId === String(post.id)).length === 0 && (
+                      <p className="text-sm text-[#827a89]">
+                        No comments yet. Start the conversation.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <input
+                      value={commentInputs[String(post.id)] ?? ""}
+                      onChange={(e) =>
+                        setCommentInputs((previous) => ({
+                          ...previous,
+                          [String(post.id)]: e.target.value,
+                        }))
+                      }
+                      placeholder="Write a comment..."
+                      className="min-w-0 flex-1 rounded-full border border-[#e9e3eb] bg-[#faf8f5] px-4 py-2 text-sm outline-none focus:border-[#b69ac8]"
+                    />
+
+                    <button
+                      onClick={() => handleSubmitComment(String(post.id))}
+                      disabled={!commentInputs[String(post.id)]?.trim()}
+                      className="rounded-full bg-[#75558c] px-4 py-2 text-sm text-white hover:bg-[#59406f] disabled:opacity-40"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              )}
               </article>
             ))}
           </div>
