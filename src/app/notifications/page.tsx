@@ -2,136 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-
-type NotificationType = "like" | "comment" | "follow" | "commission";
-
-type KindredNotification = {
-  id: string;
-  type: NotificationType;
-  name: string;
-  username: string;
-  avatar: string;
-  avatarColor: string;
-  message: string;
-  time: string;
-  read: boolean;
-  href: string;
-};
-
-const initialNotifications: KindredNotification[] = [
-  {
-    id: "notification-1",
-    type: "like",
-    name: "Moss & Moon",
-    username: "mossandmoon",
-    avatar: "M",
-    avatarColor: "#e5eddc",
-    message: "liked your post.",
-    time: "10 minutes ago",
-    read: false,
-    href: "/u/mossandmoon",
-  },
-  {
-    id: "notification-2",
-    type: "comment",
-    name: "PaperCrow",
-    username: "papercrow",
-    avatar: "P",
-    avatarColor: "#f0dfe8",
-    message: "commented on your post: \"I love this idea!\"",
-    time: "1 hour ago",
-    read: false,
-    href: "/u/papercrow",
-  },
-  {
-    id: "notification-3",
-    type: "follow",
-    name: "Little Fern Studio",
-    username: "littlefernstudio",
-    avatar: "F",
-    avatarColor: "#e2e8f2",
-    message: "started following you.",
-    time: "3 hours ago",
-    read: false,
-    href: "/u/littlefernstudio",
-  },
-  {
-    id: "notification-4",
-    type: "commission",
-    name: "PixelWitch",
-    username: "pixelwitch",
-    avatar: "W",
-    avatarColor: "#e8e1f1",
-    message: "sent you a commission request.",
-    time: "Yesterday",
-    read: true,
-    href: "/commissions",
-  },
-  {
-    id: "notification-5",
-    type: "like",
-    name: "Ink & Ivy",
-    username: "inkandivy",
-    avatar: "I",
-    avatarColor: "#f1e5dc",
-    message: "liked your post.",
-    time: "Yesterday",
-    read: true,
-    href: "/u/inkandivy",
-  },
-  {
-    id: "notification-6",
-    type: "follow",
-    name: "Starling Studio",
-    username: "starlingstudio",
-    avatar: "S",
-    avatarColor: "#e6e5f0",
-    message: "started following you.",
-    time: "2 days ago",
-    read: true,
-    href: "/u/starlingstudio",
-  },
-];
+import {
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  subscribeToNotifications,
+  type KindredNotification,
+  type NotificationType,
+} from "@/app/lib/notifications";
 
 const filters = ["All", "Unread", "Likes", "Comments", "Follows", "Commissions"];
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<KindredNotification[]>([]);
   const [activeFilter, setActiveFilter] = useState("All");
-
-  // Load saved notification state
-  useEffect(() => {
-    const saved = localStorage.getItem("kindred-notifications");
-
-    if (saved) {
-      try {
-        setNotifications(JSON.parse(saved));
-      } catch {
-        localStorage.removeItem("kindred-notifications");
-      }
-    }
-  }, []);
-
-  // Save notification state
-  useEffect(() => {
-    localStorage.setItem("kindred-notifications", JSON.stringify(notifications));
-  }, [notifications]);
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
 
-  const markAsRead = (id: string) => {
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
-  };
+ const markAsRead = (id: string) => {
+  setNotifications(markNotificationRead(id));
+};
 
-  const markAllAsRead = () => {
-    setNotifications((current) =>
-      current.map((notification) => ({ ...notification, read: true }))
-    );
-  };
+const markAllAsRead = () => {
+  setNotifications(markAllNotificationsRead());
+};
 
   const filteredNotifications = notifications.filter((notification) => {
     if (activeFilter === "All") return true;
@@ -143,7 +37,13 @@ export default function NotificationsPage() {
 
     return true;
   });
+useEffect(() => {
+  const refresh = () => setNotifications(getNotifications());
 
+  refresh();
+
+  return subscribeToNotifications(refresh);
+}, []);
   const getIcon = (type: NotificationType) => {
     switch (type) {
       case "like":
