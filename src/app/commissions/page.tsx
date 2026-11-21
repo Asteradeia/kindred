@@ -110,7 +110,6 @@ export default function CommissionsPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [openOnly, setOpenOnly] = useState(false);
   const [sortBy, setSortBy] = useState("featured");
-
   const filteredCommissions = useMemo(() => {
     let results = commissions.filter((commission) => {
       const matchesCategory =
@@ -124,7 +123,11 @@ export default function CommissionsPage() {
       return matchesCategory && matchesSearch && matchesAvailability;
     });
 
-    if (sortBy === "price-low") {
+    if (sortBy === "featured") {
+      results = [...results].sort(
+        (a, b) => Number(b.featured) - Number(a.featured)
+      );
+    } else if (sortBy === "price-low") {
       results = [...results].sort((a, b) => a.price - b.price);
     } else if (sortBy === "price-high") {
       results = [...results].sort((a, b) => b.price - a.price);

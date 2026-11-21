@@ -1,23 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { posts } from "@/app/data/posts";
-
+import {
+  getPosts,
+  subscribeToPosts,
+} from "@/app/lib/sharedPosts";
 type SortOption = "newest" | "popular" | "creator";
 
 export default function ArchivePage() {
   const [selectedTag, setSelectedTag] = useState("All");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [search, setSearch] = useState("");
+const [allPosts, setAllPosts] = useState<ReturnType<typeof getPosts>>([]);
+useEffect(() => {
+  function refreshPosts() {
+    setAllPosts(getPosts());
+  }
 
+  refreshPosts();
+
+  const unsubscribe = subscribeToPosts(refreshPosts);
+
+  return () => unsubscribe();
+}, []);
   const tags = [
     "All",
-    ...Array.from(new Set(posts.flatMap((post) => post.tags))).sort(),
+    ...Array.from(new Set(allPosts.flatMap((post) => post.tags))).sort(),
   ];
 
   const filteredPosts = useMemo(() => {
-    let result = [...posts];
+    let result = [...allPosts];
 
     if (selectedTag !== "All") {
       result = result.filter((post) =>
@@ -48,7 +61,7 @@ export default function ArchivePage() {
     }
 
     return result;
-  }, [selectedTag, sortBy, search]);
+  }, [allPosts, selectedTag, sortBy, search]);
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#46394f]">
