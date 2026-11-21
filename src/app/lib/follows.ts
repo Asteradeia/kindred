@@ -16,7 +16,11 @@ export function getFollowedCreators(): string[] {
 }
 
 export function isFollowing(username: string): boolean {
-  return getFollowedCreators().includes(username);
+  const normalizedUsername = username.replace("@", "").toLowerCase();
+
+  return getFollowedCreators().some(
+    (name) => name.replace("@", "").toLowerCase() === normalizedUsername
+  );
 }
 
 export function toggleFollow(username: string): string[] {

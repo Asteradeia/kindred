@@ -120,18 +120,19 @@ function CreatorProfileContent() {
   const creator = creators[username as keyof typeof creators] as Creator | undefined;
 
   const [following, setFollowing] = useState(false);
-
+  const [followingCount, setFollowingCount] = useState(creator?.following ?? 0);
 useEffect(() => {
   const refreshFollowing = () => {
     setFollowing(getFollowedCreators().includes(username));
   };
 
-  queueMicrotask(refreshFollowing);
+  setFollowingCount(creator?.following ?? 0);
 
+  queueMicrotask(refreshFollowing);
   const unsubscribe = subscribeToFollows(refreshFollowing);
 
   return unsubscribe;
-}, [username]);
+}, [username, creator]);
   const [activeTab, setActiveTab] = useState("Posts");
   const [allPosts, setAllPosts] = useState<KindredPost[]>([]);
 
@@ -148,7 +149,6 @@ useEffect(() => {
 const creatorPosts = allPosts.filter((post) => {
   const postUsername = post.username?.trim().toLowerCase();
   const profileUsername = username.trim().toLowerCase();
-
   return postUsername === profileUsername;
 });
 
@@ -260,7 +260,7 @@ const creatorPosts = allPosts.filter((post) => {
    <div className="mt-8 flex flex-wrap gap-8 text-sm">
   <p><strong>{creatorPosts.length}</strong> posts</p>
   <p><strong>{creator.followers}</strong> followers</p>
-  <p><strong>{creator.following}</strong> following</p>
+  <p><strong>{followingCount}</strong> following</p>
 </div>
 
         {/* Profile tabs */}

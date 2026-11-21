@@ -25,6 +25,7 @@ import { sharePost } from "@/app/lib/shares";
 import type { KindredComment } from "@/app/lib/comments";
 import {
   getFollowedCreators,
+  toggleFollow as toggleCreatorFollow,
   subscribeToFollows,
 } from "@/app/lib/follows";
 const suggestedCreators = [
@@ -203,13 +204,10 @@ async function handleShare(postId: string) {
     setSharedPostId(postId);
   }
 }
-  function toggleFollow(username: string) {
-    setFollowing((previous) =>
-      previous.includes(username)
-        ? previous.filter((name) => name !== username)
-        : [...previous, username]
-    );
-  }
+function toggleFollow(username: string) {
+  const updated = toggleCreatorFollow(username.replace("@", "").toLowerCase());
+  setFollowing(updated);
+}
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#30283a]">
@@ -404,20 +402,57 @@ async function handleShare(postId: string) {
             ))}
           </div>
           {/* Posts */}
-          <div className="space-y-5">
-            {displayedPosts.map((post) => (
+<div className="space-y-5">
+  {activeFeed === "following" && displayedPosts.length === 0 ? (
+    <div className="rounded-3xl border border-[#e9e3eb] bg-white px-6 py-12 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#eee8f2] text-3xl text-[#75558c]">
+        ♡
+      </div>
+
+      <h2 className="mt-4 font-serif text-2xl text-[#59406f]">
+        {followedCreators.length === 0
+          ? "Your creative circle awaits"
+          : "A little quiet in your circle"}
+      </h2>
+
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#827a89]">
+        {followedCreators.length === 0
+          ? "Follow creators whose work you love, and their latest creations will find their way here."
+          : "The creators you follow haven't shared anything yet. Check back soon, or discover someone new."}
+      </p>
+
+      <Link
+        href="/discover"
+        className="mt-5 inline-block rounded-full bg-[#75558c] px-5 py-2.5 text-sm text-white transition hover:bg-[#59406f]"
+      >
+        Discover creators
+      </Link>
+    </div>
+  ) : (
+    displayedPosts.map((post) => (
               <article key={post.id} className="overflow-hidden rounded-3xl border border-[#e9e3eb] bg-white">
                 <div className="flex items-center justify-between p-5">
                   <div className="flex items-center gap-3">
-                    <div
+                    <Link
+                      href={`/u/${post.username.replace("@", "").toLowerCase()}`}
+                      aria-label={`View ${post.creator}'s profile`}
                       style={{ backgroundColor: post.avatarColor }}
-                      className="flex h-11 w-11 items-center justify-center rounded-full font-medium text-[#75558c]"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-medium text-[#75558c] hover:opacity-80"
                     >
                       {post.avatar}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{post.creator}</p>
-                      <p className="text-xs text-[#827a89]">@{post.username} · {post.time}</p>
+                    </Link>
+
+                    <div className="min-w-0">
+                      <Link
+                        href={`/u/${post.username.replace("@", "").toLowerCase()}`}
+                        className="block text-sm font-medium hover:text-[#75558c]"
+                      >
+                        {post.creator}
+                      </Link>
+
+                      <p className="text-xs text-[#827a89]">
+                        @{post.username} · {post.time}
+                      </p>
                     </div>
                   </div>
                   <button aria-label="Post options" className="text-xl text-[#827a89]">···</button>
@@ -544,7 +579,7 @@ async function handleShare(postId: string) {
                 </div>
               )}
               </article>
-            ))}
+            )))}
           </div>
         </section>
 
@@ -566,15 +601,32 @@ async function handleShare(postId: string) {
                     >
                       {creator.letter}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{creator.name}</p>
-                      <p className="truncate text-xs text-[#827a89]">{creator.username}</p>
-                    </div>
+                    <div className="min-w-0 flex-1 flex flex-col">
+  <Link
+    href={`/u/${creator.username.replace("@", "").toLowerCase()}`}
+    className="block truncate text-sm font-medium hover:text-[#75558c]"
+  >
+    {creator.name}
+  </Link>
+
+  <Link
+    href={`/u/${creator.username.replace("@", "").toLowerCase()}`}
+    className="block truncate text-xs text-[#827a89] hover:text-[#75558c]"
+  >
+    {creator.username}
+  </Link>
+</div>
                     <button
                       onClick={() => toggleFollow(creator.username)}
-                      className="rounded-full border border-[#dcd2e2] px-3 py-1.5 text-xs text-[#75558c] transition hover:bg-[#eee8f2]"
+                      className={`rounded-full px-3 py-1.5 text-xs transition ${
+  following.includes(creator.username.replace("@", "").toLowerCase())
+    ? "bg-[#75558c] text-white border border-[#75558c] hover:bg-[#59406f]"
+    : "border border-[#dcd2e2] text-[#75558c] hover:bg-[#eee8f2]"
+}`}
                     >
-                      {following.includes(creator.username) ? "Following" : "Follow"}
+                      {following.includes(creator.username.replace("@", "").toLowerCase())
+  ? "Following"
+  : "Follow"}
                     </button>
                   </div>
                 ))}

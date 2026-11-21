@@ -1,5 +1,11 @@
-
+"use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  getFollowedCreators,
+  toggleFollow,
+  subscribeToFollows,
+} from "@/app/lib/follows";
 
 const categories = [
   { name: "Illustration & Art", description: "Discover beautiful creations", icon: "✳", color: "bg-[#eee5f3]" },
@@ -15,6 +21,14 @@ const creators = [
 ];
 
 export default function Home() {
+  const [following, setFollowing] = useState<string[]>([]);
+
+useEffect(() => {
+  const refresh = () => setFollowing(getFollowedCreators());
+
+  refresh();
+  return subscribeToFollows(refresh);
+}, []);
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
       {/* Navigation */}
@@ -160,17 +174,36 @@ export default function Home() {
         <div className="grid gap-5 md:grid-cols-3">
           {creators.map((creator) => (
             <article key={creator.handle} className="rounded-3xl border border-[#e9e3eb] bg-white p-6 transition hover:shadow-sm">
-              <div className={`${creator.color} flex h-24 items-center justify-center rounded-2xl`}>
-                <span className="font-serif text-5xl text-[#75558c]">{creator.initials}</span>
-              </div>
+              <Link href={`/u/${creator.handle.replace("@", "").toLowerCase()}`}
+  aria-label={`View ${creator.name}'s profile`}
+  className={`${creator.color} flex h-24 items-center justify-center rounded-2xl transition hover:opacity-80`}>
+  <span className="font-serif text-5xl text-[#75558c]">{creator.initials}</span>
+</Link>
               <div className="mt-5 flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">{creator.name}</h3>
-                  <p className="mt-1 text-sm text-[#827a89]">{creator.handle}</p>
-                </div>
-                <button className="rounded-full border border-[#dcd2e2] px-4 py-2 text-sm text-[#75558c] transition hover:bg-[#eee8f2]">
-                  Follow
-                </button>
+                <div className="min-w-0">
+  <Link
+    href={`/u/${creator.handle.replace("@", "").toLowerCase()}`}
+    className="block font-medium transition hover:text-[#75558c]"
+  >
+    {creator.name}
+  </Link>
+
+  <Link
+    href={`/u/${creator.handle.replace("@", "").toLowerCase()}`}
+    className="mt-1 block text-sm text-[#827a89] hover:text-[#75558c]">
+    {creator.handle}
+  </Link>
+</div>
+                <button
+  onClick={() => toggleFollow(creator.handle)}
+  className={`rounded-full border px-4 py-2 text-sm transition ${
+    following.includes(creator.handle)
+      ? "border-[#75558c] bg-[#75558c] text-white"
+      : "border-[#dcd2e2] text-[#75558c] hover:bg-[#eee8f2]"
+  }`}
+>
+  {following.includes(creator.handle) ? "Following" : "Follow"}
+</button>
               </div>
               <p className="mt-4 text-sm text-[#827a89]">{creator.role}</p>
             </article>
