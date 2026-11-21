@@ -21,7 +21,7 @@ import {
   addComment,
   subscribeToComments,
 } from "@/app/lib/comments";
-
+import { sharePost } from "@/app/lib/shares";
 import type { KindredComment } from "@/app/lib/comments";
 const suggestedCreators = [
   { name: "Moss & Moon", username: "@mossandmoon", letter: "M", color: "#e3eadc" },
@@ -31,6 +31,7 @@ const suggestedCreators = [
 
 export default function KindredHome() {
   const [likedPostIds, setLikedPostIds] = useState<string[]>([]);
+  const [sharedPostId, setSharedPostId] = useState<string | null>(null);
   const [following, setFollowing] = useState<string[]>([]);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<string[]>([]);
   const [activeFeed, setActiveFeed] = useState("Following");
@@ -170,9 +171,15 @@ function handleSubmitComment(postId: string) {
     content,
     createdAt: new Date().toISOString(),
   };
-
   setPostComments(addComment(newComment));
   setCommentInputs((previous) => ({ ...previous, [postId]: "" }));
+}
+async function handleShare(postId: string) {
+  const success = await sharePost(postId);
+
+  if (success) {
+    setSharedPostId(postId);
+  }
 }
   function toggleFollow(username: string) {
     setFollowing((previous) =>
@@ -441,7 +448,12 @@ function handleSubmitComment(postId: string) {
 >
   ○ {postComments.filter((comment) => comment.postId === String(post.id)).length} comments
 </button>
-                    <button className="text-sm text-[#827a89] hover:text-[#75558c]">↗ Share</button>
+                    <button
+  onClick={() => handleShare(String(post.id))}
+  className="text-sm text-[#827a89] hover:text-[#75558c]"
+>
+  {sharedPostId === String(post.id) ? "Link copied!" : "↗ Share"}
+</button>
                   </div>
                   <button
   onClick={() => handleBookmark(post)}
