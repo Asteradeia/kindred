@@ -7,7 +7,105 @@ import {
   subscribeToPosts,
 } from "@/app/lib/sharedPosts";
 type SortOption = "newest" | "popular" | "creator";
+type ProductType = "In Stock" | "Made to Order" | "Pre-order" | "Digital";
 
+const productTypes: ProductType[] = [
+  "In Stock",
+  "Made to Order",
+  "Pre-order",
+  "Digital",
+];
+interface MarketplaceProduct {
+  id: number;
+  title: string;
+  creator: string;
+  username: string;
+  description: string;
+  price: number;
+  category: string;
+  type: ProductType;
+  quantityAvailable: number;
+  releaseDate?: string;
+  preOrderLimit?: number;
+  preOrdersReserved?: number;
+  turnaround?: string;
+  featured?: boolean;
+}
+const marketplaceProducts: MarketplaceProduct[] = [
+  {
+    id: 1,
+    title: "Moonlit Forest Print",
+    creator: "Moss & Moon",
+    username: "mossandmoon",
+    description: "A dreamy woodland illustration printed on archival paper.",
+    price: 18,
+    category: "Prints",
+    type: "In Stock",
+    quantityAvailable: 12,
+    featured: true,
+  },
+  {
+    id: 2,
+    title: "Crochet Woodland Fox",
+    creator: "Little Fern Studio",
+    username: "littlefernstudio",
+    description: "A handmade crochet fox created to order.",
+    price: 35,
+    category: "Handmade",
+    type: "Made to Order",
+    quantityAvailable: 5,
+    turnaround: "2–3 weeks",
+    featured: true,
+  },
+  {
+    id: 3,
+    title: "Celestial Sticker Pack",
+    creator: "Starling Studio",
+    username: "starlingstudio",
+    description: "A collection of celestial-themed digital stickers.",
+    price: 5,
+    category: "Digital",
+    type: "Digital",
+    quantityAvailable: 999,
+  },
+  {
+    id: 4,
+    title: "Spring Cottage Collection",
+    creator: "Moss & Moon",
+    username: "mossandmoon",
+    description: "A new collection of cottage-inspired art prints.",
+    price: 24,
+    category: "Prints",
+    type: "Pre-order",
+    quantityAvailable: 20,
+    releaseDate: "2027-03-15",
+    preOrderLimit: 50,
+    preOrdersReserved: 30,
+    featured: true,
+  },
+  {
+    id: 5,
+    title: "Handmade Silver Leaf Necklace",
+    creator: "Ink & Ivy",
+    username: "inkandivy",
+    description: "A delicate silver necklace inspired by nature.",
+    price: 42,
+    category: "Jewellery",
+    type: "In Stock",
+    quantityAvailable: 2,
+  },
+  {
+    id: 6,
+    title: "Fantasy Character Base Pack",
+    creator: "PixelWitch",
+    username: "pixelwitch",
+    description: "A digital pixel-art base pack for indie game creators.",
+    price: 12,
+    category: "Game Assets",
+    type: "Digital",
+    quantityAvailable: 999,
+  },
+];
 export default function ArchivePage() {
   const [selectedTag, setSelectedTag] = useState("All");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
@@ -70,17 +168,17 @@ useEffect(() => {
         {/* Header */}
         <header className="mb-10">
           <p className="mb-2 text-sm uppercase tracking-[0.2em] text-[#9277a8]">
-            The Kindred library
-          </p>
+  The Kindred marketplace
+</p>
 
-          <h1 className="font-serif text-4xl text-[#59406f] md:text-5xl">
-            The Archive
-          </h1>
+<h1 className="font-serif text-4xl text-[#59406f] md:text-5xl">
+  Marketplace
+</h1>
 
-          <p className="mt-3 max-w-xl text-[#827a89]">
-            A collection of ideas, creations, little moments and things
-            shared by the Kindred community.
-          </p>
+<p className="mt-3 max-w-xl text-[#827a89]">
+  Discover unique creations, handmade goods, artwork and digital
+  products from creators across the Kindred community.
+</p>
         </header>
 
         {/* Search & Sorting */}
