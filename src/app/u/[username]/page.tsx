@@ -6,7 +6,11 @@ import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import type { KindredPost } from "@/app/data/posts";
 import { getPosts, subscribeToPosts } from "@/app/lib/sharedPosts";
-
+import {
+  getFollowedCreators,
+  toggleFollow,
+  subscribeToFollows,
+} from "@/app/lib/follows";
 const creators = {
   mossandmoon: {
     name: "Moss & Moon",
@@ -116,6 +120,18 @@ function CreatorProfileContent() {
   const creator = creators[username as keyof typeof creators] as Creator | undefined;
 
   const [following, setFollowing] = useState(false);
+
+useEffect(() => {
+  const refreshFollowing = () => {
+    setFollowing(getFollowedCreators().includes(username));
+  };
+
+  queueMicrotask(refreshFollowing);
+
+  const unsubscribe = subscribeToFollows(refreshFollowing);
+
+  return unsubscribe;
+}, [username]);
   const [activeTab, setActiveTab] = useState("Posts");
   const [allPosts, setAllPosts] = useState<KindredPost[]>([]);
 
@@ -204,7 +220,7 @@ const creatorPosts = allPosts.filter((post) => {
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => setFollowing(!following)}
+                onClick={() => setFollowing(toggleFollow(username).includes(username))}
                 className={`rounded-full px-7 py-3 text-sm transition ${
                   following
                     ? "border border-[#dcd2e2] bg-white text-[#75558c]"

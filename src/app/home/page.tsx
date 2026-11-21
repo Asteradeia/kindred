@@ -23,6 +23,10 @@ import {
 } from "@/app/lib/comments";
 import { sharePost } from "@/app/lib/shares";
 import type { KindredComment } from "@/app/lib/comments";
+import {
+  getFollowedCreators,
+  subscribeToFollows,
+} from "@/app/lib/follows";
 const suggestedCreators = [
   { name: "Moss & Moon", username: "@mossandmoon", letter: "M", color: "#e3eadc" },
   { name: "PaperCrow", username: "@papercrow", letter: "P", color: "#f0dfe8" },
@@ -34,7 +38,6 @@ export default function KindredHome() {
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
   const [following, setFollowing] = useState<string[]>([]);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<string[]>([]);
-  const [activeFeed, setActiveFeed] = useState("Following");
   const [newPost, setNewPost] = useState("");
   const [newTags, setNewTags] = useState("");
   const [showTags, setShowTags] = useState(false);
@@ -44,6 +47,14 @@ export default function KindredHome() {
   const [postComments, setPostComments] = useState<KindredComment[]>([]);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<string[]>([]);
+  const [activeFeed, setActiveFeed] = useState<"forYou" | "following">("forYou");
+  const [followedCreators, setFollowedCreators] = useState<string[]>([]);
+  const displayedPosts =
+    activeFeed === "following"
+      ? feedPosts.filter((post) =>
+          followedCreators.includes(post.username.toLowerCase()),
+        )
+      : feedPosts;
   useEffect(() => {
     const refreshBookmarks = () => {
       setBookmarkedPosts(getBookmarks().map((post) => String(post.id)));
@@ -57,6 +68,17 @@ export default function KindredHome() {
       window.removeEventListener("kindred-bookmarks-updated", refreshBookmarks);
     };
   }, []);
+  useEffect(() => {
+  const refreshFollowedCreators = () => {
+    setFollowedCreators(getFollowedCreators());
+  };
+
+  queueMicrotask(refreshFollowedCreators);
+
+  const unsubscribe = subscribeToFollows(refreshFollowedCreators);
+
+  return unsubscribe;
+}, []);
 useEffect(() => {
   queueMicrotask(() => setFeedPosts(getPosts()));
 
@@ -364,24 +386,26 @@ async function handleShare(postId: string) {
 
           {/* Feed selector */}
           <div className="mb-5 flex gap-2 rounded-2xl border border-[#e9e3eb] bg-white p-2">
-            {["Following", "Latest", "Discover"].map((tab) => (
+              {[
+                { label: "For you", value: "forYou" as const },
+                { label: "Following", value: "following" as const },
+              ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setActiveFeed(tab)}
+                  key={tab.value}
+                  onClick={() => setActiveFeed(tab.value)}
                 className={`flex-1 rounded-xl py-2.5 text-sm transition ${
-                  activeFeed === tab
+                    activeFeed === tab.value
                     ? "bg-[#eee8f2] font-medium text-[#75558c]"
                     : "text-[#827a89] hover:bg-[#faf8f5]"
                 }`}
               >
-                {tab}
+                  {tab.label}
               </button>
             ))}
           </div>
-
           {/* Posts */}
           <div className="space-y-5">
-            {feedPosts.map((post) => (
+            {displayedPosts.map((post) => (
               <article key={post.id} className="overflow-hidden rounded-3xl border border-[#e9e3eb] bg-white">
                 <div className="flex items-center justify-between p-5">
                   <div className="flex items-center gap-3">
