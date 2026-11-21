@@ -2,71 +2,69 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
-import { posts } from "@/app/data/posts";
-
+import { useEffect, useRef, useState } from "react";
+import {
+  getPosts,
+  addPost,
+  subscribeToPosts,
+} from "@/app/lib/sharedPosts";
+import { getBookmarks, toggleBookmark } from "@/app/lib/bookmarks";
+import {
+  getLikedPosts,
+  toggleLike as togglePostLike,
+  subscribeToLikes,
+} from "@/app/lib/likes";
+import type { KindredPost } from "@/app/data/posts";
 const suggestedCreators = [
   { name: "Moss & Moon", username: "@mossandmoon", letter: "M", color: "#e3eadc" },
   { name: "PaperCrow", username: "@papercrow", letter: "P", color: "#f0dfe8" },
   { name: "Little Fern", username: "@littlefernstudio", letter: "F", color: "#e4e6f1" },
 ];
 
-function Artwork({ type }: { type: string }) {
-  if (type === "mushroom") {
-    return (
-      <div className="relative flex h-72 items-center justify-center overflow-hidden bg-[#e9e1f0]">
-        <div className="absolute left-8 top-8 text-3xl">✦</div>
-        <div className="absolute right-12 top-12 text-xl">✧</div>
-        <div className="absolute bottom-10 left-16 text-2xl">✿</div>
-        <div className="relative flex flex-col items-center">
-          <div className="z-10 h-20 w-36 rounded-t-full bg-[#b9829c] shadow-sm" />
-          <div className="-mt-2 h-24 w-16 rounded-b-3xl bg-[#f7eee6]" />
-          <div className="absolute left-7 top-12 h-3 w-3 rounded-full bg-[#f7eee6]" />
-          <div className="absolute right-7 top-12 h-3 w-3 rounded-full bg-[#f7eee6]" />
-        </div>
-        <div className="absolute bottom-0 h-16 w-full bg-[#cbd9c1]" />
-      </div>
-    );
-  }
-
-  if (type === "book") {
-    return (
-      <div className="flex h-64 items-center justify-center bg-[#f2e1e2]">
-        <div className="relative flex h-40 w-32 -rotate-6 flex-col items-center justify-center rounded-r-xl border-l-8 border-[#98748b] bg-[#75558c] text-center shadow-xl">
-          <span className="text-3xl text-[#ead9e9]">✧</span>
-          <p className="mt-3 font-serif text-lg italic text-white">The Hollow</p>
-          <p className="font-serif text-sm text-[#ead9e9]"> Lighthouse</p>
-          <div className="mt-3 h-px w-16 bg-[#d7bdd9]" />
-        </div>
-        <div className="absolute mb-48 ml-64 text-2xl text-[#b37c8d]">☾</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-64 items-center justify-center bg-[#e4e6f1]">
-      <div className="relative flex h-40 w-40 items-center justify-center rounded-full bg-[#c3c9df]">
-        <div className="flex h-28 w-24 items-center justify-center rounded-[45%] bg-[#f1e2d7] text-5xl">🐻</div>
-        <span className="absolute -right-3 top-3 text-2xl">✿</span>
-        <span className="absolute -left-4 bottom-5 text-xl">✧</span>
-      </div>
-    </div>
-  );
-}
-
 export default function KindredHome() {
-  const [likedPosts, setLikedPosts] = useState<number[]>([]);
+  const [likedPostIds, setLikedPostIds] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<string[]>([]);
   const [activeFeed, setActiveFeed] = useState("Following");
   const [newPost, setNewPost] = useState("");
-  const [feedPosts, setFeedPosts] = useState(posts);
   const [newTags, setNewTags] = useState("");
   const [showTags, setShowTags] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [feedPosts, setFeedPosts] = useState<KindredPost[]>([]);
+  useEffect(() => {
+    const refreshBookmarks = () => {
+      setBookmarkedPosts(getBookmarks().map((post) => String(post.id)));
+    };
 
+    refreshBookmarks();
+
+    window.addEventListener("kindred-bookmarks-updated", refreshBookmarks);
+
+    return () => {
+      window.removeEventListener("kindred-bookmarks-updated", refreshBookmarks);
+    };
+  }, []);
+useEffect(() => {
+  queueMicrotask(() => setFeedPosts(getPosts()));
+
+  const unsubscribe = subscribeToPosts(() => {
+    setFeedPosts(getPosts());
+  });
+
+  return unsubscribe;
+}, []);
+useEffect(() => {
+  queueMicrotask(() => setLikedPostIds(getLikedPosts()));
+
+  const unsubscribe = subscribeToLikes(() => {
+    setLikedPostIds(getLikedPosts());
+  });
+
+  return unsubscribe;
+}, []);
 function publishPost() {
-  if (!newPost.trim()) return;
+  if (!newPost.trim() && !imagePreview) return;
 
   const tags = newTags
     .split(/[,\s]+/)
@@ -87,7 +85,8 @@ function publishPost() {
     comments: 0,
   };
 
-  setFeedPosts((previousPosts) => [post, ...previousPosts]);
+  const updatedPosts = addPost(post);
+  setFeedPosts(updatedPosts);
   setNewPost("");
   setNewTags("");
   setShowTags(false);
@@ -121,13 +120,16 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
   reader.readAsDataURL(file);
 }
-  function toggleLike(index: number) {
-    setLikedPosts((previous) =>
-      previous.includes(index)
-        ? previous.filter((id) => id !== index)
-        : [...previous, index]
-    );
+  function handleToggleLike(post: KindredPost) {
+    setLikedPostIds(togglePostLike(String(post.id)));
   }
+  function handleBookmark(post: (typeof feedPosts)[number]) {
+  toggleBookmark(post);
+
+  setBookmarkedPosts(
+    getBookmarks().map((saved) => String(saved.id))
+  );
+}
 
   function toggleFollow(username: string) {
     setFollowing((previous) =>
@@ -154,7 +156,15 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
           </div>
 
           <div className="flex items-center gap-5">
-            <button aria-label="Notifications" className="text-xl text-[#75558c]">♡</button>
+            
+<Link
+  href="/notifications"
+  aria-label="Notifications"
+  title="Notifications"
+  className="text-xl text-[#75558c] transition hover:text-[#59406f]"
+>
+  ♡
+</Link>
             <button aria-label="Messages" className="text-xl text-[#75558c]">✉</button>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c]">K</div>
           </div>
@@ -180,30 +190,34 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
               </Link>
             </div>
 
-            <nav className="space-y-1">
-              {[
-                ["⌂", "Home"],
-                ["✧", "Discover"],
-                ["▤", "Archive"],
-                ["✎", "Commissions"],
-                ["♡", "Requests"],
-                ["♧", "Projects"],
-                ["▣", "Bookmarks"],
-              ].map(([icon, label]) => (
-                <a
-                  key={label}
-                  href={label === "Home" ? "/home" : `/${label.toLowerCase()}`}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
-                    label === "Home"
-                      ? "bg-[#eee8f2] font-medium text-[#75558c]"
-                      : "text-[#62596b] hover:bg-[#f0ebf2]"
-                  }`}
-                >
-                  <span className="text-lg">{icon}</span>
-                  {label}
-                </a>
-              ))}
-            </nav>
+            
+<nav className="space-y-1">
+  {[
+    ["⌂", "Home", "/home"],
+    ["✧", "Discover", "/discover"],
+    ["⌕", "Search", "/search"],
+    ["▤", "Archive", "/archive"],
+    ["✎", "Commissions", "/commissions"],
+    ["♡", "Requests", "/requests"],
+    ["♧", "Projects", "/projects"],
+    ["▣", "Bookmarks", "/bookmarks"],
+    ["♧", "Notifications", "/notifications"],
+  ].map(([icon, label, href]) => (
+    <Link
+      key={label}
+      href={href}
+      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
+        label === "Home"
+          ? "bg-[#eee8f2] font-medium text-[#75558c]"
+          : "text-[#62596b] hover:bg-[#f0ebf2]"
+      }`}
+    >
+      <span className="text-lg">{icon}</span>
+      {label}
+    </Link>
+  ))}
+</nav>
+
 
             <div className="px-3 text-xs leading-6 text-[#a19aa8]">
               A home for people who create.
@@ -289,7 +303,7 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                 </button>
               </div>
               <button
-                disabled={!newPost.trim()}
+              disabled={!newPost.trim() && !imagePreview}
              onClick={publishPost}
                 className="rounded-full bg-[#75558c] px-5 py-2 text-sm text-white transition hover:bg-[#59406f] disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -317,7 +331,7 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
           {/* Posts */}
           <div className="space-y-5">
-            {feedPosts.map((post, index) => (
+            {feedPosts.map((post) => (
               <article key={post.id} className="overflow-hidden rounded-3xl border border-[#e9e3eb] bg-white">
                 <div className="flex items-center justify-between p-5">
                   <div className="flex items-center gap-3">
@@ -336,8 +350,11 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                 </div>
 
                 <div className="px-5 pb-4">
-                  <p className="text-sm leading-7">{post.content}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  {post.content && (
+                    <p className="text-sm leading-7">{post.content}</p>
+                  )}
+                  {post.tags.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
                     {post.tags.map((tag) => (
                       <Link
                         key={tag}
@@ -347,33 +364,49 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                         #{tag.replace(/^#/, "")}
                       </Link>
                     ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
-                {post.image ? (
-                  <img
-                    src={post.image}
-                    alt=""
-                    className="max-h-[520px] w-full object-contain bg-[#faf8f5]"
-                  />
-                ) : (
-                  <Artwork type={index === 0 ? "mushroom" : index === 1 ? "book" : "bear"} />
+                {post.image && (
+                  <div className="mb-4 overflow-hidden rounded-xl">
+                    <img
+                      src={post.image}
+                      alt="Post attachment"
+                      className="w-full object-cover"
+                    />
+                  </div>
                 )}
 
                 <div className="flex items-center justify-between px-5 py-4">
                   <div className="flex gap-5">
-                    <button
-                      onClick={() => toggleLike(index)}
-                      className={`text-sm transition ${
-                        likedPosts.includes(index) ? "text-[#b66d8a]" : "text-[#827a89] hover:text-[#b66d8a]"
-                      }`}
-                    >
-                      {likedPosts.includes(index) ? "♥" : "♡"} {post.likes + (likedPosts.includes(index) ? 1 : 0)}
-                    </button>
+                   <button
+  onClick={() => handleToggleLike(post)}
+  aria-label={likedPostIds.includes(String(post.id)) ? "Unlike post" : "Like post"}
+  className={`text-sm transition ${
+    likedPostIds.includes(String(post.id))
+      ? "text-[#b66d8a]"
+      : "text-[#827a89] hover:text-[#b66d8a]"
+  }`}
+>
+  {likedPostIds.includes(String(post.id)) ? "♥" : "♡"}{" "}
+  {post.likes + (likedPostIds.includes(String(post.id)) ? 1 : 0)}
+</button>
                     <button className="text-sm text-[#827a89] hover:text-[#75558c]">○ {post.comments} comments</button>
                     <button className="text-sm text-[#827a89] hover:text-[#75558c]">↗ Share</button>
                   </div>
-                  <button className="text-lg text-[#827a89] hover:text-[#75558c]" aria-label="Bookmark">♧</button>
+                  <button
+  onClick={() => handleBookmark(post)}
+  aria-label={bookmarkedPosts.includes(String(post.id)) ? "Remove bookmark" : "Bookmark"}
+  title={bookmarkedPosts.includes(String(post.id)) ? "Remove bookmark" : "Save post"}
+  className={`text-lg transition ${
+    bookmarkedPosts.includes(String(post.id))
+      ? "text-[#75558c]"
+      : "text-[#827a89] hover:text-[#75558c]"
+  }`}
+>
+  {bookmarkedPosts.includes(String(post.id)) ? "♣" : "♧"}
+</button>
                 </div>
               </article>
             ))}

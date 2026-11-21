@@ -3,7 +3,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import type { KindredPost } from "@/app/data/posts";
+import { getPosts, subscribeToPosts } from "@/app/lib/sharedPosts";
 
 const creators = {
   mossandmoon: {
@@ -115,6 +117,24 @@ function CreatorProfileContent() {
 
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState("Posts");
+  const [allPosts, setAllPosts] = useState<KindredPost[]>([]);
+
+useEffect(() => {
+  setAllPosts(getPosts());
+
+  const unsubscribe = subscribeToPosts(() => {
+    setAllPosts(getPosts());
+  });
+
+  return unsubscribe;
+}, []);
+
+const creatorPosts = allPosts.filter((post) => {
+  const postUsername = post.username?.trim().toLowerCase();
+  const profileUsername = username.trim().toLowerCase();
+
+  return postUsername === profileUsername;
+});
 
   if (!creator) {
     return (
@@ -221,12 +241,11 @@ function CreatorProfileContent() {
           </div>
 
           {/* Stats */}
-          <div className="mt-8 flex flex-wrap gap-8 text-sm">
-            <p><strong>{creator.posts}</strong> posts</p>
-            <p><strong>{creator.followers}</strong> followers</p>
-            <p><strong>{creator.following}</strong> following</p>
-          </div>
-        </section>
+   <div className="mt-8 flex flex-wrap gap-8 text-sm">
+  <p><strong>{creatorPosts.length}</strong> posts</p>
+  <p><strong>{creator.followers}</strong> followers</p>
+  <p><strong>{creator.following}</strong> following</p>
+</div>
 
         {/* Profile tabs */}
         <section className="mt-6 border-b border-[#e9e3eb]">
@@ -248,16 +267,79 @@ function CreatorProfileContent() {
         </section>
 
         {/* Tab content */}
-        <section className="py-10">
-          {activeTab === "Posts" && (
-            <div className="rounded-3xl border border-[#e9e3eb] bg-white p-8 text-center">
-              <span className="text-4xl text-[#b69ac8]">✧</span>
-              <h2 className="mt-3 font-serif text-2xl">A little corner of creativity</h2>
-              <p className="mt-3 text-[#827a89]">
-                Creator posts will appear here when the feed system is connected.
-              </p>
+        {activeTab === "Posts" && (
+  <div>
+    {creatorPosts.length === 0 ? (
+      <div className="rounded-3xl border border-[#e9e3eb] bg-white p-8 text-center">
+        <span className="text-4xl text-[#b69ac8]">✧</span>
+
+        <h2 className="mt-3 font-serif text-2xl">
+          A little corner of creativity
+        </h2>
+
+        <p className="mt-3 text-[#827a89]">
+          {creator.name} hasn't shared any posts yet.
+        </p>
+      </div>
+    ) : (
+      <div className="grid gap-5 md:grid-cols-2">
+        {creatorPosts.map((post) => (
+          <article
+            key={post.id}
+            className="rounded-3xl border border-[#e9e3eb] bg-white p-6 transition hover:shadow-md"
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-11 w-11 items-center justify-center rounded-full font-serif text-lg text-[#59406f]"
+                style={{ backgroundColor: creator.color }}
+              >
+                {creator.avatar}
+              </div>
+
+              <div>
+                <p className="font-medium text-[#75558c]">{creator.name}</p>
+                <p className="text-xs text-[#827a89]">
+                  @{creator.username} · {post.time}
+                </p>
+              </div>
             </div>
-          )}
+
+            {post.image && (
+              <div className="mt-4 overflow-hidden rounded-2xl">
+                <img
+                  src={post.image}
+                  alt="Post attachment"
+                  className="max-h-[500px] w-full object-contain"
+                />
+              </div>
+            )}
+
+            <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#63596b]">
+              {post.content}
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {post.tags.map((tag) => (
+                <Link
+                  key={tag}
+                  href={`/tags/${encodeURIComponent(tag.toLowerCase().replace(/^#/, ""))}`}
+                  className="rounded-full bg-[#f1edf4] px-3 py-1 text-xs text-[#75558c] hover:bg-[#e9e1ef]"
+                >
+                  #{tag.replace(/^#/, "")}
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-5 flex gap-5 border-t border-[#f0ebf2] pt-4 text-sm text-[#9277a8]">
+              <span>♡ {post.likes}</span>
+              <span>☁ {post.comments}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
           {activeTab === "Portfolio" && (
             <div>
