@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   getPosts,
   addPost,
@@ -36,6 +37,7 @@ const suggestedCreators = [
 
 export default function KindredHome() {
   const [likedPostIds, setLikedPostIds] = useState<string[]>([]);
+  const [headerSearch, setHeaderSearch] = useState("");
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
   const [following, setFollowing] = useState<string[]>([]);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<string[]>([]);
@@ -89,6 +91,7 @@ useEffect(() => {
 
   return unsubscribe;
 }, []);
+const router = useRouter();
 useEffect(() => {
   queueMicrotask(() => setLikedPostIds(getLikedPosts()));
 
@@ -220,6 +223,13 @@ function toggleFollow(username: string) {
 
           <div className="hidden max-w-md flex-1 px-12 md:block">
             <input
+              value={headerSearch}
+              onChange={(e) => setHeaderSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && headerSearch.trim()) {
+                  router.push(`/search?query=${encodeURIComponent(headerSearch.trim())}`);
+                }
+              }}
               placeholder="Search Kindred..."
               className="w-full rounded-full border border-[#e9e3eb] bg-white px-5 py-2.5 text-sm outline-none transition focus:border-[#b69ac8]"
             />

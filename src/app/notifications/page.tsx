@@ -71,9 +71,101 @@ useEffect(() => {
   };
 
   return (
-    <main className="min-h-screen bg-[#faf8f5] text-[#46394f]">
-      <div className="mx-auto max-w-4xl px-6 py-12">
+  <>
+    <header className="sticky top-0 z-40 border-b border-[#e9e3eb] bg-[#faf8f5]/95 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5">
+        <Link href="/" className="text-2xl font-bold tracking-tight text-[#75558c]">
+          kindred<span className="text-[#c59aa6">.</span>
+        </Link>
 
+        <div className="hidden max-w-md flex-1 px-12 md:block">
+          <input
+            placeholder="Search Kindred..."
+            className="w-full rounded-full border border-[#e9e3eb] bg-white px-5 py-2.5 text-sm outline-none transition focus:border-[#b69ac8]"
+          />
+        </div>
+
+        <div className="flex items-center gap-5">
+          <Link
+            href="/notifications"
+            aria-label="Notifications"
+            title="Notifications"
+            className="text-xl text-[#75558c] transition hover:text-[#59406f]"
+          >
+            ♡
+          </Link>
+
+          <button aria-label="Messages" className="text-xl text-[#75558c]">
+            ✉
+          </button>
+
+          <Link
+            href="/profile"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c]"
+          >
+            K
+          </Link>
+        </div>
+      </div>
+    </header>
+
+    <main className="min-h-screen bg-[#faf8f5] text-[#46394f]">
+      <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[220px_minmax(0,620px)]">
+      <aside className="hidden lg:block">
+  <div className="sticky top-24 space-y-6">
+    <div className="rounded-3xl border border-[#e9e3eb] bg-white p-5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e9e1f0] text-lg font-medium text-[#75558c]">
+          K
+        </div>
+
+        <div>
+          <p className="font-medium">Kellie</p>
+          <p className="text-xs text-[#827a89]">@yourusername</p>
+        </div>
+      </div>
+
+      <Link
+        href="/profile"
+        className="mt-4 block rounded-full border border-[#e9e3eb] py-2 text-center text-sm text-[#75558c] hover:bg-[#eee8f2]"
+      >
+        View profile
+      </Link>
+    </div>
+
+    <nav className="space-y-1">
+      {[
+        ["⌂", "Home", "/home"],
+        ["✧", "Discover", "/discover"],
+        ["⌕", "Search", "/search"],
+        ["▤", "Archive", "/archive"],
+        ["✎", "Commissions", "/commissions"],
+        ["♡", "Requests", "/requests"],
+        ["♧", "Projects", "/projects"],
+        ["▣", "Bookmarks", "/bookmarks"],
+        ["♧", "Notifications", "/notifications"],
+      ].map(([icon, label, href]) => (
+        <Link
+          key={label}
+          href={href}
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
+            label === "Notifications"
+              ? "bg-[#eee8f2] font-medium text-[#75558c]"
+              : "text-[#62596b] hover:bg-[#f0ebf2]"
+          }`}
+        >
+          <span className="text-lg">{icon}</span>
+          {label}
+        </Link>
+      ))}
+    </nav>
+
+    <div className="px-3 text-xs leading-6 text-[#a19aa8]">
+      A home for people who create.
+    </div>
+  </div>
+</aside>
+<div className="min-w-0">
         {/* Header */}
         <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -244,8 +336,15 @@ useEffect(() => {
             ← Back to your feed
           </Link>
         </div>
-
+          <footer className="px-2 text-xs leading-6 text-[#a19aa8]">
+  <div>
+    About · Guidelines · Privacy · Terms
+  </div>
+  <p className="mt-1">© 2026 Kindred</p>
+</footer>
+        </div>
       </div>
     </main>
+  </>
   );
 }
