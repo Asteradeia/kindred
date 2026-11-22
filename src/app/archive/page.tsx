@@ -1,140 +1,172 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  getPosts,
-  subscribeToPosts,
-} from "@/app/lib/sharedPosts";
-type SortOption = "newest" | "popular" | "creator";
-type ProductType = "In Stock" | "Made to Order" | "Pre-order" | "Digital";
+  marketplaceProducts,
+  productTypes,
+  type MarketplaceProduct,
+} from "@/app/data/marketplace";
 
-const productTypes: ProductType[] = [
-  "In Stock",
-  "Made to Order",
-  "Pre-order",
-  "Digital",
-];
-interface MarketplaceProduct {
-  id: number;
-  title: string;
-  creator: string;
-  username: string;
-  description: string;
-  price: number;
-  category: string;
-  type: ProductType;
-  quantityAvailable: number;
-  releaseDate?: string;
-  preOrderLimit?: number;
-  preOrdersReserved?: number;
-  turnaround?: string;
-  featured?: boolean;
+type SortOption =
+  | "featured"
+  | "price-low"
+  | "price-high"
+  | "release-date";
+
+function ProductCard({ product }: { product: MarketplaceProduct }) {
+  const [imageIndex, setImageIndex] = useState(0);
+  const detailHref = `/archive/${product.id}`;
+  const hasMultipleImages = product.images.length > 1;
+
+  const moveImage = (offset: number) => {
+    setImageIndex(
+      (current) => (current + offset + product.images.length) % product.images.length
+    );
+  };
+
+  return (
+    <article className="rounded-2xl border border-[#e5dce9] bg-white p-6 transition hover:shadow-md">
+      <div className="relative mb-4 h-48 overflow-hidden rounded-xl bg-[#eee8f2]">
+        {product.images.length > 0 ? (
+          <Link href={detailHref} className="block h-full w-full">
+            <img
+              src={product.images[imageIndex]}
+              alt={product.title}
+              className="h-full w-full object-cover"
+            />
+          </Link>
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-[#9277a8]">
+            Image coming soon
+          </div>
+        )}
+
+        {hasMultipleImages && (
+          <>
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={() => moveImage(-1)}
+              className="absolute left-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#59406f] shadow"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={() => moveImage(1)}
+              className="absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#59406f] shadow"
+            >
+              ›
+            </button>
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+              {product.images.map((image, index) => (
+                <button
+                  key={image}
+                  type="button"
+                  aria-label={`Show image ${index + 1}`}
+                  onClick={() => setImageIndex(index)}
+                  className={`h-2 rounded-full shadow ${
+                    index === imageIndex ? "w-5 bg-white" : "w-2 bg-white/60"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <span className="rounded-full bg-[#eee8f2] px-3 py-1 text-xs text-[#75558c]">
+          {product.type}
+        </span>
+        {product.featured && (
+          <span className="text-xs text-[#9277a8]">Featured</span>
+        )}
+      </div>
+
+      <h3 className="font-serif text-xl text-[#59406f]">
+        <Link href={detailHref} className="hover:underline">
+          {product.title}
+        </Link>
+      </h3>
+
+      <Link
+        href={`/u/${product.username}`}
+        className="mt-1 block text-sm text-[#9277a8] hover:text-[#59406f]"
+      >
+        by {product.creator}
+      </Link>
+
+      <p className="mt-3 text-sm leading-relaxed text-[#63596b]">
+        {product.description}
+      </p>
+
+      <div className="mt-4 flex items-center justify-between">
+        <span className="font-medium text-[#59406f]">
+          €{product.price.toFixed(2)}
+        </span>
+        <span className="text-xs text-[#9277a8]">{product.category}</span>
+      </div>
+
+      {product.type === "Pre-order" && product.releaseDate && (
+        <p className="mt-3 text-sm text-[#75558c]">
+          Release date:{" "}
+          {new Date(product.releaseDate).toLocaleDateString("en-IE")}
+        </p>
+      )}
+
+      {product.type === "Made to Order" && product.turnaround && (
+        <p className="mt-3 text-sm text-[#75558c]">
+          Made in: {product.turnaround}
+        </p>
+      )}
+
+      <div className="mt-4 border-t border-[#f0ebf2] pt-4">
+        <p className="text-xs text-[#9277a8]">
+          {product.type === "Pre-order"
+            ? `${(product.preOrderLimit ?? 0) - (product.preOrdersReserved ?? 0)} pre-order slots remaining`
+            : product.type === "Digital"
+              ? "Digital download"
+              : product.quantityAvailable > 0
+                ? `${product.quantityAvailable} available`
+                : "Sold out"}
+        </p>
+      </div>
+
+      <Link
+        href={`/u/${product.username}`}
+        className="mt-5 block rounded-full border border-[#e5dce9] px-4 py-2 text-center text-sm text-[#75558c] transition hover:bg-[#eee8f2]"
+      >
+        Visit creator
+      </Link>
+    </article>
+  );
 }
-const marketplaceProducts: MarketplaceProduct[] = [
-  {
-    id: 1,
-    title: "Moonlit Forest Print",
-    creator: "Moss & Moon",
-    username: "mossandmoon",
-    description: "A dreamy woodland illustration printed on archival paper.",
-    price: 18,
-    category: "Prints",
-    type: "In Stock",
-    quantityAvailable: 12,
-    featured: true,
-  },
-  {
-    id: 2,
-    title: "Crochet Woodland Fox",
-    creator: "Little Fern Studio",
-    username: "littlefernstudio",
-    description: "A handmade crochet fox created to order.",
-    price: 35,
-    category: "Handmade",
-    type: "Made to Order",
-    quantityAvailable: 5,
-    turnaround: "2–3 weeks",
-    featured: true,
-  },
-  {
-    id: 3,
-    title: "Celestial Sticker Pack",
-    creator: "Starling Studio",
-    username: "starlingstudio",
-    description: "A collection of celestial-themed digital stickers.",
-    price: 5,
-    category: "Digital",
-    type: "Digital",
-    quantityAvailable: 999,
-  },
-  {
-    id: 4,
-    title: "Spring Cottage Collection",
-    creator: "Moss & Moon",
-    username: "mossandmoon",
-    description: "A new collection of cottage-inspired art prints.",
-    price: 24,
-    category: "Prints",
-    type: "Pre-order",
-    quantityAvailable: 20,
-    releaseDate: "2027-03-15",
-    preOrderLimit: 50,
-    preOrdersReserved: 30,
-    featured: true,
-  },
-  {
-    id: 5,
-    title: "Handmade Silver Leaf Necklace",
-    creator: "Ink & Ivy",
-    username: "inkandivy",
-    description: "A delicate silver necklace inspired by nature.",
-    price: 42,
-    category: "Jewellery",
-    type: "In Stock",
-    quantityAvailable: 2,
-  },
-  {
-    id: 6,
-    title: "Fantasy Character Base Pack",
-    creator: "PixelWitch",
-    username: "pixelwitch",
-    description: "A digital pixel-art base pack for indie game creators.",
-    price: 12,
-    category: "Game Assets",
-    type: "Digital",
-    quantityAvailable: 999,
-  },
-];
+
 export default function ArchivePage() {
-  const [selectedTag, setSelectedTag] = useState("All");
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [search, setSearch] = useState("");
-const [allPosts, setAllPosts] = useState<ReturnType<typeof getPosts>>([]);
-useEffect(() => {
-  function refreshPosts() {
-    setAllPosts(getPosts());
-  }
-
-  refreshPosts();
-
-  const unsubscribe = subscribeToPosts(refreshPosts);
-
-  return () => unsubscribe();
-}, []);
-  const tags = [
+ const [search, setSearch] = useState("");
+const [selectedType, setSelectedType] = useState("All");
+const [selectedCategory, setSelectedCategory] = useState("All");
+const [sortBy, setSortBy] = useState("featured");
+  const categories = [
     "All",
-    ...Array.from(new Set(allPosts.flatMap((post) => post.tags))).sort(),
+    ...Array.from(
+      new Set(marketplaceProducts.map((product) => product.category))
+    ),
   ];
 
-  const filteredPosts = useMemo(() => {
-    let result = [...allPosts];
+  const filteredProducts = useMemo(() => {
+    let result = [...marketplaceProducts];
 
-    if (selectedTag !== "All") {
-      result = result.filter((post) =>
-        post.tags.some(
-          (tag) => tag.toLowerCase() === selectedTag.toLowerCase()
-        )
+    if (selectedType !== "All") {
+      result = result.filter((product) => product.type === selectedType);
+    }
+
+    if (selectedCategory !== "All") {
+      result = result.filter(
+        (product) => product.category === selectedCategory
       );
     }
 
@@ -142,24 +174,38 @@ useEffect(() => {
       const term = search.toLowerCase();
 
       result = result.filter(
-        (post) =>
-          post.content.toLowerCase().includes(term) ||
-          post.creator.toLowerCase().includes(term) ||
-          post.username.toLowerCase().includes(term) ||
-          post.tags.some((tag) => tag.toLowerCase().includes(term))
+        (product) =>
+          product.title.toLowerCase().includes(term) ||
+          product.description.toLowerCase().includes(term) ||
+          product.creator.toLowerCase().includes(term) ||
+          product.username.toLowerCase().includes(term) ||
+          product.category.toLowerCase().includes(term)
       );
     }
 
-    if (sortBy === "popular") {
-      result.sort((a, b) => b.likes - a.likes);
-    }
+    if (sortBy === "featured") {
+      result.sort(
+        (a, b) => Number(b.featured) - Number(a.featured)
+      );
+    } else if (sortBy === "price-low") {
+      result.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-high") {
+      result.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "release-date") {
+      result.sort((a, b) => {
+        const dateA = a.releaseDate
+          ? new Date(a.releaseDate).getTime()
+          : Infinity;
+        const dateB = b.releaseDate
+          ? new Date(b.releaseDate).getTime()
+          : Infinity;
 
-    if (sortBy === "creator") {
-      result.sort((a, b) => a.creator.localeCompare(b.creator));
+        return dateA - dateB;
+      });
     }
 
     return result;
-  }, [allPosts, selectedTag, sortBy, search]);
+  }, [selectedType, selectedCategory, sortBy, search]);
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#46394f]">
@@ -188,7 +234,7 @@ useEffect(() => {
 
             <input
               type="text"
-              placeholder="Search the archive..."
+              placeholder="Search products, creators, or categories..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-transparent text-[#59406f] outline-none placeholder:text-[#aaa1b1]"
@@ -209,121 +255,100 @@ useEffect(() => {
             onChange={(e) => setSortBy(e.target.value as SortOption)}
             className="rounded-xl border border-[#e5dce9] bg-white px-4 py-3 text-sm text-[#75558c] outline-none"
           >
-            <option value="newest">Newest</option>
-            <option value="popular">Most liked</option>
-            <option value="creator">Creator A–Z</option>
+            <option value="featured">Featured</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="release-date">Release Date</option>
           </select>
         </div>
 
-        {/* Tag filters */}
-        <section className="mb-10">
+        {/* Product type filters */}
+        <section className="mb-6">
           <h2 className="mb-3 text-sm font-medium text-[#59406f]">
-            Browse by topic
+            Browse by type
           </h2>
 
           <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => (
+            {(["All", ...productTypes] as string[]).map((type) => (
               <button
-                key={tag}
-                onClick={() => setSelectedTag(tag)}
+                key={type}
+                onClick={() => setSelectedType(type)}
                 className={`rounded-full px-4 py-2 text-sm transition ${
-                  selectedTag === tag
+                  selectedType === type
                     ? "bg-[#75558c] text-white"
                     : "border border-[#e5dce9] bg-white text-[#75558c] hover:bg-[#eee8f2]"
                 }`}
               >
-                {tag === "All" ? "All posts" : `#${tag}`}
+                {type === "All" ? "All types" : type}
               </button>
             ))}
           </div>
         </section>
 
+        {/* Category filters */}
+<section className="mb-10">
+  <h2 className="mb-3 text-sm font-medium text-[#59406f]">
+    Browse by category
+  </h2>
+
+  <div className="flex flex-wrap gap-2">
+    {categories.map((category) => (
+      <button
+        key={category}
+        onClick={() => setSelectedCategory(category)}
+        className={`rounded-full px-4 py-2 text-sm transition ${
+          selectedCategory === category
+            ? "bg-[#75558c] text-white"
+            : "border border-[#e5dce9] bg-white text-[#75558c] hover:bg-[#eee8f2]"
+        }`}
+      >
+        {category === "All" ? "All categories" : category}
+      </button>
+    ))}
+  </div>
+</section>
+
         {/* Results heading */}
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-serif text-2xl text-[#59406f]">
-            Community posts
-          </h2>
+<div className="mb-5 flex items-center justify-between">
+  <h2 className="font-serif text-2xl text-[#59406f]">
+    Products
+  </h2>
 
-          <span className="text-sm text-[#9277a8]">
-            {filteredPosts.length} {filteredPosts.length === 1 ? "post" : "posts"}
-          </span>
-        </div>
+  <span className="text-sm text-[#9277a8]">
+    {filteredProducts.length}{" "}
+    {filteredProducts.length === 1 ? "product" : "products"}
+  </span>
+</div>
 
-        {/* Post grid */}
-        {filteredPosts.length === 0 ? (
-          <div className="rounded-2xl border border-[#e5dce9] bg-white p-12 text-center">
-            <h3 className="font-serif text-xl text-[#59406f]">
-              Nothing found in the archive
-            </h3>
+            {/* Product grid */}
+{filteredProducts.length === 0 ? (
+  <div className="rounded-2xl border border-[#e5dce9] bg-white p-12 text-center">
+    <h3 className="font-serif text-xl text-[#59406f]">
+      No products found
+    </h3>
 
-            <p className="mt-2 text-sm text-[#827a89]">
-              Try changing your search or choosing a different topic.
-            </p>
+    <p className="mt-2 text-sm text-[#827a89]">
+      Try changing your search or filters.
+    </p>
 
-            <button
-              onClick={() => {
-                setSelectedTag("All");
-                setSearch("");
-              }}
-              className="mt-5 rounded-full bg-[#75558c] px-5 py-2 text-sm text-white hover:bg-[#59406f]"
-            >
-              Reset filters
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-5 md:grid-cols-2">
-            {filteredPosts.map((post) => (
-              <article
-                key={post.id}
-                className="rounded-2xl border border-[#e5dce9] bg-white p-6 transition hover:shadow-md"
-              >
-                {/* Creator */}
-                <Link
-                  href={`/u/${post.username}`}
-                  className="mb-5 flex items-center gap-3"
-                >
-                  <div
-                    className="flex h-11 w-11 items-center justify-center rounded-full font-serif text-lg text-[#59406f]"
-                    style={{ backgroundColor: post.avatarColor }}
-                  >
-                    {post.avatar}
-                  </div>
-
-                  <div>
-                    <p className="font-medium text-[#59406f]">{post.creator}</p>
-                    <p className="text-xs text-[#9277a8]">
-                      @{post.username} · {post.time}
-                    </p>
-                  </div>
-                </Link>
-
-                {/* Content */}
-                <p className="leading-relaxed text-[#63596b]">
-                  {post.content}
-                </p>
-
-                {/* Tags */}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => setSelectedTag(tag)}
-                      className="rounded-full bg-[#f1edf4] px-3 py-1 text-xs text-[#75558c] hover:bg-[#e9e1ef]"
-                    >
-                      #{tag}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Stats */}
-                <div className="mt-5 flex gap-5 border-t border-[#f0ebf2] pt-4 text-sm text-[#9277a8]">
-                  <span>♡ {post.likes}</span>
-                  <span>☁ {post.comments}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+    <button
+      onClick={() => {
+        setSelectedType("All");
+        setSelectedCategory("All");
+        setSearch("");
+      }}
+      className="mt-5 rounded-full bg-[#75558c] px-5 py-2 text-sm text-white hover:bg-[#59406f]"
+    >
+      Reset filters
+    </button>
+  </div>
+) : (
+  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    {filteredProducts.map((product) => (
+      <ProductCard key={product.id} product={product} />
+    ))}
+  </div>
+)}
 
         {/* Footer */}
         <div className="mt-16 rounded-2xl bg-[#eee8f2] p-8 text-center">
