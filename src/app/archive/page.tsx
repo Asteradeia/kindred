@@ -25,14 +25,14 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
   };
 
   return (
-    <article className="rounded-2xl border border-[#e5dce9] bg-white p-6 transition hover:shadow-md">
-      <div className="relative mb-4 h-48 overflow-hidden rounded-xl bg-[#eee8f2]">
+    <article className="rounded-2xl border border-[#e5dce9] bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+     <div className="group relative mb-4 h-56 overflow-hidden rounded-xl bg-[#eee8f2]">
         {product.images.length > 0 ? (
           <Link href={detailHref} className="block h-full w-full">
             <img
               src={product.images[imageIndex]}
               alt={product.title}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           </Link>
         ) : (
@@ -77,12 +77,24 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
       </div>
 
       <div className="mb-4 flex items-start justify-between gap-3">
-        <span className="rounded-full bg-[#eee8f2] px-3 py-1 text-xs text-[#75558c]">
-          {product.type}
-        </span>
+  <span
+    className={`rounded-full px-3 py-1 text-xs font-medium ${
+      product.type === "In Stock"
+        ? "bg-green-50 text-green-700"
+        : product.type === "Made to Order"
+          ? "bg-amber-50 text-amber-700"
+          : product.type === "Pre-order"
+            ? "bg-purple-50 text-purple-700"
+            : "bg-blue-50 text-blue-700"
+    }`}
+  >
+    {product.type}
+  </span>
         {product.featured && (
-          <span className="text-xs text-[#9277a8]">Featured</span>
-        )}
+  <span className="rounded-full bg-[#f8f0df] px-3 py-1 text-xs font-medium text-[#a17a40]">
+    ✦ Featured
+  </span>
+)}
       </div>
 
       <h3 className="font-serif text-xl text-[#59406f]">
@@ -103,11 +115,13 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
       </p>
 
       <div className="mt-4 flex items-center justify-between">
-        <span className="font-medium text-[#59406f]">
-          €{product.price.toFixed(2)}
-        </span>
-        <span className="text-xs text-[#9277a8]">{product.category}</span>
-      </div>
+  <span className="text-lg font-semibold text-[#59406f]">
+    €{product.price.toFixed(2)}
+  </span>
+  <span className="rounded-md bg-[#faf8f5] px-2 py-1 text-xs text-[#9277a8]">
+    {product.category}
+  </span>
+</div>
 
       {product.type === "Pre-order" && product.releaseDate && (
         <p className="mt-3 text-sm text-[#75558c]">

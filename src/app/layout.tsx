@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BasketProvider } from "./data/BasketContext";
+import Navbar from "@/components/Navbar";
 export const instant = false;
 
 const geistSans = Geist({
@@ -27,8 +28,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
      <body className="min-h-full flex flex-col">
   <BasketProvider>
-    {children}
-  </BasketProvider>
+  <Navbar />
+  {children}
+</BasketProvider>
 </body>
     </html>
   );

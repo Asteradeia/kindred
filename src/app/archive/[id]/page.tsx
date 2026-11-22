@@ -36,39 +36,40 @@ export default async function ProductDetailPage({
         <div className="mt-6 grid gap-8 lg:grid-cols-[1.35fr_0.65fr]">
           <ProductGallery images={product.images} title={product.title} />
 
-          <aside className="h-fit rounded-2xl border border-[#e5dce9] bg-white p-6">
+          <aside className="h-fit rounded-2xl border border-[#e5dce9] bg-white p-7 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full bg-[#eee8f2] px-3 py-1 text-xs text-[#75558c]">
                 {product.type}
               </span>
               {product.featured && (
-                <span className="text-xs text-[#9277a8]">Featured</span>
-              )}
+  <span className="rounded-full bg-[#f8f0df] px-3 py-1 text-xs font-medium text-[#a17a40]">
+    ✦ Featured
+  </span>
+)}
             </div>
 
-            <h1 className="mt-5 font-serif text-3xl text-[#59406f]">
+            <h1 className="mt-5 font-serif text-4xl leading-tight text-[#59406f]">
               {product.title}
             </h1>
+      <Link
+        href={`/u/${product.username}`}
+        className="mt-2 inline-block text-sm font-medium text-[#9277a8] transition hover:text-[#59406f] hover:underline"
+      >
+       Created by {product.creator}
+      </Link>
 
-            <Link
-              href={`/u/${product.username}`}
-              className="mt-2 block text-sm text-[#9277a8] hover:text-[#59406f]"
-            >
-              by {product.creator}
-            </Link>
-
-            <p className="mt-5 leading-relaxed text-[#63596b]">
+            <p className="mt-5 text-[15px] leading-7 text-[#63596b]">
               {product.description}
             </p>
 
             <div className="mt-6 border-t border-[#f0ebf2] pt-5">
-              <p className="font-serif text-3xl text-[#59406f]">
-                €{product.price.toFixed(2)}
-              </p>
-              <p className="mt-2 text-xs text-[#9277a8]">
-                {product.category}
-              </p>
-            </div>
+  <p className="font-serif text-4xl font-medium text-[#59406f]">
+    €{product.price.toFixed(2)}
+  </p>
+  <p className="mt-2 text-sm text-[#9277a8]">
+    {product.category}
+  </p>
+</div>
 
             {product.type === "Pre-order" && product.releaseDate && (
               <p className="mt-4 text-sm text-[#75558c]">
@@ -83,7 +84,7 @@ export default async function ProductDetailPage({
               </p>
             )}
 
-            <div className="mt-4">
+            <div className="mt-5 rounded-xl bg-[#faf8f5] p-4">
   <p className="text-sm font-medium text-[#59406f]">
     {product.type === "Pre-order"
       ? "Pre-order available"
@@ -108,7 +109,9 @@ export default async function ProductDetailPage({
             : "Currently unavailable"}
   </p>
 </div>
-            <ProductConfiguration product={product} />
+           <div className="mt-5 border-t border-[#f0ebf2] pt-5">
+  <ProductConfiguration product={product} />
+</div>
 
 
           </aside>

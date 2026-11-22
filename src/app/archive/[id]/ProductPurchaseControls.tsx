@@ -39,7 +39,7 @@ export default function ProductPurchaseControls({
         Quantity
       </p>
 
-      <div className="flex w-fit items-center rounded-full border border-[#e5dce9] bg-white">
+      <div className="flex w-fit items-center overflow-hidden rounded-full border border-[#e5dce9] bg-white shadow-sm">
         <button
           type="button"
           onClick={() => setQuantity((current) => Math.max(1, current - 1))}
@@ -74,8 +74,12 @@ export default function ProductPurchaseControls({
       <button
         type="button"
         onClick={handleAddToBasket}
-        disabled={maxQuantity <= 0}
-        className="mt-6 block w-full rounded-full bg-[#75558c] px-5 py-3 text-center text-sm text-white transition hover:bg-[#59406f] disabled:cursor-not-allowed disabled:opacity-50"
+        className={`mt-6 block w-full rounded-full px-5 py-3 text-center text-sm font-medium text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm ${
+  added
+    ? "bg-[#b9a3d3] hover:bg-[#aa91c8]"
+    : "bg-[#75558c] hover:bg-[#59406f]"
+}`}
+
       >
         {added ? "Added to basket ✓" : "Add to basket"}
       </button>
