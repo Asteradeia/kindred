@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { marketplaceProducts } from "@/app/data/marketplace";
 import ProductGallery from "./ProductGallery";
-
+import ProductConfiguration from "./ProductConfiguration";
 export function generateStaticParams() {
   return marketplaceProducts.map((product) => ({
     id: String(product.id),
@@ -108,12 +108,9 @@ export default async function ProductDetailPage({
             : "Currently unavailable"}
   </p>
 </div>
-            <Link
-              href={`/u/${product.username}`}
-              className="mt-6 block rounded-full bg-[#75558c] px-5 py-3 text-center text-sm text-white transition hover:bg-[#59406f]"
-            >
-              Visit creator
-            </Link>
+            <ProductConfiguration product={product} />
+
+
           </aside>
         </div>
 

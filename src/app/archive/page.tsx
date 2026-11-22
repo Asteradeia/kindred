@@ -7,7 +7,6 @@ import {
   productTypes,
   type MarketplaceProduct,
 } from "@/app/data/marketplace";
-
 type SortOption =
   | "featured"
   | "price-low"

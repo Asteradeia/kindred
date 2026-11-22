@@ -4,6 +4,11 @@ export type ProductType =
   | "Pre-order"
   | "Digital";
 
+export interface ProductVariation {
+  name: string;
+  options: string[];
+}
+
 export interface MarketplaceProduct {
   id: number;
   images: string[];
@@ -20,6 +25,7 @@ export interface MarketplaceProduct {
   preOrdersReserved?: number;
   turnaround?: string;
   featured?: boolean;
+  variations?: ProductVariation[];
 }
 
 export const productTypes: ProductType[] = [
@@ -96,6 +102,16 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     category: "Jewellery",
     type: "In Stock",
     quantityAvailable: 2,
+    variations: [
+  {
+    name: "Finish",
+    options: ["Silver", "Gold Plated"],
+  },
+  {
+    name: "Chain Length",
+    options: ["16 inches", "18 inches", "20 inches"],
+  },
+],
   },
   {
     id: 6,
