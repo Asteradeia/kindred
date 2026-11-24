@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BasketProvider } from "./data/BasketContext";
+import { AuthProvider } from "./data/AuthContext";
 import Navbar from "@/components/Navbar";
 export const instant = false;
 
@@ -27,10 +28,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
      <body className="min-h-full flex flex-col">
-  <BasketProvider>
-  <Navbar />
-  {children}
-</BasketProvider>
+  <AuthProvider>
+    <BasketProvider>
+      <Navbar />
+      {children}
+    </BasketProvider>
+  </AuthProvider>
 </body>
     </html>
   );

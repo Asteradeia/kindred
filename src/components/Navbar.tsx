@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBasket } from "@/app/data/BasketContext";
+import { useAuth } from "@/app/data/AuthContext";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function Navbar() {
   const { items } = useBasket();
+  const { user } = useAuth();
   const router = useRouter();
   const [search, setSearch] = useState("");
 

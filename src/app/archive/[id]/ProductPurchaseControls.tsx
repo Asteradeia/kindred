@@ -24,14 +24,25 @@ export default function ProductPurchaseControls({
         : product.quantityAvailable;
 
   const handleAddToBasket = () => {
-    addToBasket({
-  product,
-  quantity,
-  selectedVariations,
-});
+  const missingVariations = product.variations?.filter(
+    (variation) => !selectedVariations[variation.name]
+  );
 
-    setAdded(true);
-  };
+  if (missingVariations && missingVariations.length > 0) {
+    setVariationError("Please select all product options.");
+    return;
+  }
+
+  setVariationError("");
+
+  addToBasket({
+    product,
+    quantity,
+    selectedVariations,
+  });
+
+  setAdded(true);
+};
 
   return (
     <div className="mt-6">
@@ -46,7 +57,7 @@ export default function ProductPurchaseControls({
           disabled={quantity <= 1}
           className="px-4 py-2 text-[#75558c] transition hover:bg-[#eee8f2] disabled:opacity-40"
         >
-          −
+          -
         </button>
 
         <span className="min-w-10 text-center text-sm text-[#59406f]">
@@ -63,8 +74,13 @@ export default function ProductPurchaseControls({
         >
           +
         </button>
+        
       </div>
-
+{variationError && (
+  <p className="mt-2 text-xs text-red-600">
+    {variationError}
+  </p>
+)}
       {maxQuantity <= 0 && (
         <p className="mt-2 text-xs text-[#9277a8]">
           Currently unavailable
@@ -73,6 +89,7 @@ export default function ProductPurchaseControls({
 
       <button
         type="button"
+        disabled={maxQuantity <= 0}
         onClick={handleAddToBasket}
         className={`mt-6 block w-full rounded-full px-5 py-3 text-center text-sm font-medium text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm ${
   added
