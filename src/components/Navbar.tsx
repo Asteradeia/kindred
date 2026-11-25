@@ -11,9 +11,17 @@ import { auth } from "@/lib/firebase";
 export default function Navbar() {
   const { items } = useBasket();
   const { user } = useAuth();
+  const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    router.push("/login");
+  } catch (error) {
+    console.error("Error signing out:", error);
+  }
+};
   const router = useRouter();
   const [search, setSearch] = useState("");
-
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const basketCount = items.reduce(
     (total, item) => total + item.quantity,
     0
@@ -144,15 +152,123 @@ export default function Navbar() {
             )}
           </Link>
 
-          {/* Profile */}
+          {/* Profile dropdown */}
+<div className="relative">
+  <button
+    type="button"
+    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+    title="Profile menu"
+    aria-label="Open profile menu"
+    aria-expanded={isProfileMenuOpen}
+    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#d9c9e5] hover:ring-2 hover:ring-[#d9c9e5]">
+    K
+  </button>
+  {isProfileMenuOpen && (
+    <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-[#e9e3eb] bg-[#fffdfb] p-3 shadow-lg">
+      
+      {user ? (
+        <>
+      {/* Account */}
+      <div className="border-b border-[#e9e3eb] py-2">
+        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
+          Your account
+        </p>
+
+        <Link
+          href="/profile"
+          onClick={() => setIsProfileMenuOpen(false)}
+          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+        >
+          My profile
+        </Link>
+
+        <Link
+          href="/settings"
+          onClick={() => setIsProfileMenuOpen(false)}
+          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+        >
+          Account settings
+        </Link>
+      </div>
+
+      {/* Creative activity */}
+      <div className="border-b border-[#e9e3eb] py-2">
+        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
+          Creative activity
+        </p>
+
+        <Link
+          href="/engagement"
+          onClick={() => setIsProfileMenuOpen(false)}
+          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+        >
+          Post engagement
+        </Link>
+
+        <Link
+          href="/bookmarks"
+          onClick={() => setIsProfileMenuOpen(false)}
+          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+        >
+          Saved items
+        </Link>
+      </div>
+
+      {/* Creator tools */}
+      <div className="border-b border-[#e9e3eb] py-2">
+        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
+          Creator tools
+        </p>
+
+        <Link
+          href="/creator-dashboard"
+          onClick={() => setIsProfileMenuOpen(false)}
+          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+        >
+          Creator dashboard
+        </Link>
+
+        <Link
+          href="/my-listings"
+          onClick={() => setIsProfileMenuOpen(false)}
+          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+        >
+          My marketplace listings
+        </Link>
+      </div>
+        </>
+      ) : (
+        <div className="py-2">
           <Link
-            href="/profile"
-            title="Profile"
-            aria-label="Your profile"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#d9c9e5] hover:ring-2 hover:ring-[#d9c9e5]"
+            href="/login"
+            onClick={() => setIsProfileMenuOpen(false)}
+            className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
           >
-            K
+            Log in
           </Link>
+
+          <Link
+            href="/register"
+            onClick={() => setIsProfileMenuOpen(false)}
+            className="block rounded-xl bg-[#75558c] px-3 py-2 text-center text-sm font-medium text-white hover:bg-[#59406f]"
+          >
+            Join Kindred
+          </Link>
+        </div>
+      )}
+          {/* Logout */}
+          {user && (
+            <div className="mt-2 border-t border-[#e9e3eb] pt-3">
+              <button
+                onClick={handleLogout}
+                className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-[#75558c] hover:bg-[#eee8f2]">
+                Log out
+              </button>
+            </div>
+          )}
+    </div>
+  )}
+</div>
 
         </div>
       </nav>
