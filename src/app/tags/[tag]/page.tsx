@@ -30,14 +30,6 @@ function TagPageContent() {
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
-      <header className="border-b border-[#e9e3eb] bg-white">
-        <div className="mx-auto max-w-4xl px-6 py-5">
-          <Link href="/home" className="text-xl font-bold text-[#75558c]">
-            kindred<span className="text-[#c59aa6">.</span>
-          </Link>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-4xl px-6 py-10">
         <Link
           href="/home"

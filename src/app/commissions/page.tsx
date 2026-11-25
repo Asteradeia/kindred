@@ -140,26 +140,6 @@ export default function CommissionsPage() {
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
-      {/* Navigation */}
-      <header className="sticky top-0 z-40 border-b border-[#e9e3eb] bg-[#faf8f5]/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-[#75558c]">
-            kindred<span className="text-[#c59aa6]">.</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 md:flex">
-            <Link href="/home" className="text-sm text-[#62596b] hover:text-[#75558c]">Home</Link>
-            <Link href="/discover" className="text-sm text-[#62596b] hover:text-[#75558c]">Discover</Link>
-            <Link href="/commissions" className="text-sm font-medium text-[#75558c]">Commissions</Link>
-            <Link href="/profile" className="text-sm text-[#62596b] hover:text-[#75558c]">Creators</Link>
-          </nav>
-
-          <Link href="/profile" className="rounded-full bg-[#e9e1f0] px-4 py-2 text-sm text-[#75558c]">
-            My account
-          </Link>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-7xl px-5 py-10">
         {/* Hero */}
         <section className="mb-10 rounded-[2rem] bg-[#eee8f2] px-8 py-12 md:px-14 md:py-16">

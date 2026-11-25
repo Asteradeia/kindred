@@ -31,31 +31,6 @@ useEffect(() => {
 }, []);
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
-      {/* Navigation */}
-      <header className="sticky top-0 z-50 border-b border-[#e9e3eb] bg-[#faf8f5]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-3xl font-bold tracking-tight text-[#75558c]">
-            kindred<span className="text-[#c59aa6]">.</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 md:flex">
-            <a href="#discover" className="text-sm text-[#62596b] transition hover:text-[#75558c]">Explore</a>
-            <a href="#creators" className="text-sm text-[#62596b] transition hover:text-[#75558c]">Creators</a>
-            <a href="#commissions" className="text-sm text-[#62596b] transition hover:text-[#75558c]">Commissions</a>
-            <a href="#community" className="text-sm text-[#62596b] transition hover:text-[#75558c]">Community</a>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <a href="/login" className="hidden rounded-full px-4 py-2 text-sm font-medium transition hover:bg-[#eee8f2] sm:block">
-              Log in
-            </a>
-            <a href="/signup" className="rounded-full bg-[#75558c] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#59406f]">
-              Join Kindred
-            </a>
-          </div>
-        </div>
-      </header>
-
       {/* Hero */}
       <section className="mx-auto max-w-7xl px-6 pb-20 pt-20 md:pb-28 md:pt-28">
         <div className="grid items-center gap-14 lg:grid-cols-2">

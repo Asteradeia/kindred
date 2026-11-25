@@ -72,43 +72,6 @@ useEffect(() => {
 
   return (
   <>
-    <header className="sticky top-0 z-40 border-b border-[#e9e3eb] bg-[#faf8f5]/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5">
-        <Link href="/" className="text-2xl font-bold tracking-tight text-[#75558c]">
-          kindred<span className="text-[#c59aa6">.</span>
-        </Link>
-
-        <div className="hidden max-w-md flex-1 px-12 md:block">
-          <input
-            placeholder="Search Kindred..."
-            className="w-full rounded-full border border-[#e9e3eb] bg-white px-5 py-2.5 text-sm outline-none transition focus:border-[#b69ac8]"
-          />
-        </div>
-
-        <div className="flex items-center gap-5">
-          <Link
-            href="/notifications"
-            aria-label="Notifications"
-            title="Notifications"
-            className="text-xl text-[#75558c] transition hover:text-[#59406f]"
-          >
-            ♡
-          </Link>
-
-          <button aria-label="Messages" className="text-xl text-[#75558c]">
-            ✉
-          </button>
-
-          <Link
-            href="/profile"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c]"
-          >
-            K
-          </Link>
-        </div>
-      </div>
-    </header>
-
     <main className="min-h-screen bg-[#faf8f5] text-[#46394f]">
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[220px_minmax(0,620px)]">
       <aside className="hidden lg:block">

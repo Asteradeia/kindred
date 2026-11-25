@@ -171,25 +171,6 @@ const creatorPosts = allPosts.filter((post) => {
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
-      {/* Navigation */}
-      <header className="border-b border-[#e9e3eb]">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="text-2xl font-bold">
-            kindred<span className="text-[#c59aa6]">.</span>
-          </Link>
-
-          <nav className="flex gap-6 text-sm">
-            <Link href="/home" className="hover:text-[#75558c]">Home</Link>
-            <Link href="/commissions" className="hover:text-[#75558c]">Commissions</Link>
-            <Link href="/discover" className="hover:text-[#75558c]">Discover</Link>
-          </nav>
-
-          <a href="/home" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e9e1f0] text-[#75558c]">
-            K
-          </a>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-7xl px-5 py-10">
         {/* Banner */}
         <section

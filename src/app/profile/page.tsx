@@ -21,26 +21,6 @@ export default function CreatorProfile() {
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
-      {/* Top navigation */}
-      <header className="sticky top-0 z-40 border-b border-[#e9e3eb] bg-[#faf8f5]/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-[#75558c]">
-            kindred<span className="text-[#c59aa6]">.</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 md:flex">
-            <Link href="/home" className="text-sm text-[#62596b] hover:text-[#75558c]">Home</Link>
-            <Link href="/discover" className="text-sm text-[#62596b] hover:text-[#75558c]">Discover</Link>
-            <Link href="/commissions" className="text-sm text-[#62596b] hover:text-[#75558c]">Commissions</Link>
-          </nav>
-
-          <div className="flex items-center gap-4">
-            <Link href="/home" className="text-sm text-[#75558c]">My account</Link>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9e1f0] text-[#75558c]">K</div>
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-6xl px-5 py-8">
         {/* Banner */}
         <div className="relative h-48 overflow-hidden rounded-[2rem] bg-gradient-to-r from-[#e9e1f0] via-[#f2e1e2] to-[#e9eee4] md:h-64">

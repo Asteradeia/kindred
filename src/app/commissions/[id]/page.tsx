@@ -166,20 +166,6 @@ function CommissionDetailContent() {
 
   return (
     <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
-      {/* Header */}
-      <header className="border-b border-[#e9e3eb] bg-[#faf8f5]">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="text-2xl font-bold text-[#75558c]">
-            kindred<span className="text-[#c59aa6]">.</span>
-          </Link>
-          <nav className="flex gap-6 text-sm">
-            <a href="/home" className="text-[#62596b] hover:text-[#75558c]">Home</a>
-            <Link href="/commissions" className="text-[#75558c]">Commissions</Link>
-            <a href="/profile" className="text-[#62596b] hover:text-[#75558c]">Profile</a>
-          </nav>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-6xl px-5 py-10">
         {/* Breadcrumb */}
         <Link href="/commissions" className="text-sm text-[#9277a8] hover:underline">

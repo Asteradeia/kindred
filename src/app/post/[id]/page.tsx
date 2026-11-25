@@ -113,31 +113,6 @@ export default function PostPage() {
 
   return (
     <main className="min-h-screen bg-[#faf8f5] flex flex-col">
-        <header className="border-b border-[#e9e3eb] bg-[#faf8f5]">
-  <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-    <Link
-      href="/home"
-      className="text-2xl font-serif font-semibold text-[#59406f]"
-    >
-      Kindred
-    </Link>
-
-    <nav className="flex items-center gap-6 text-sm text-[#827a89]">
-      <Link href="/home" className="hover:text-[#75558c]">
-        Home
-      </Link>
-      <Link href="/discover" className="hover:text-[#75558c]">
-        Discover
-      </Link>
-      <Link href="/search" className="hover:text-[#75558c]">
-        Search
-      </Link>
-      <Link href="/u/yourusername" className="hover:text-[#75558c]">
-        Profile
-      </Link>
-    </nav>
-  </div>
-</header>
       <div className="relative flex flex-1 items-start justify-center px-6 pt-16 pb-12">
         <div className="w-full max-w-[640px] rounded-2xl border border-[#e9e3eb] bg-white p-8">
           <div className="flex items-center gap-3">
