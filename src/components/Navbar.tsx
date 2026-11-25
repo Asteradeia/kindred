@@ -1,27 +1,175 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { sendEmailVerification, type User } from "firebase/auth";
 import { useBasket } from "@/app/data/BasketContext";
 import { useAuth } from "@/app/data/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
+function EmailVerificationStatus({
+  user,
+  emailVerified,
+  refreshEmailVerification,
+}: {
+  user: User;
+  emailVerified: boolean;
+  refreshEmailVerification: () => Promise<boolean>;
+}) {
+  const [status, setStatus] = useState<
+    "idle" | "sending" | "checking" | "sent" | "error"
+  >("idle");
+  const [message, setMessage] = useState("");
+
+  async function resendVerificationEmail() {
+    setStatus("sending");
+    setMessage("");
+
+    try {
+      await sendEmailVerification(user);
+      setStatus("sent");
+      setMessage(`Verification email sent to ${user.email}.`);
+    } catch (error: unknown) {
+      console.error("Error resending email verification:", error);
+      setStatus("error");
+      setMessage(
+        error instanceof Error &&
+          "code" in error &&
+          error.code === "auth/too-many-requests"
+          ? "Too many requests. Please wait before trying again."
+          : "We couldn't send a verification email. Please try again.",
+      );
+    }
+  }
+
+  async function checkVerificationStatus() {
+    setStatus("checking");
+    setMessage("");
+
+    try {
+      const verified = await refreshEmailVerification();
+      setStatus(verified ? "sent" : "idle");
+      setMessage(
+        verified
+          ? "Your email address is verified."
+          : "Your email address is not verified yet.",
+      );
+    } catch (error: unknown) {
+      console.error("Error refreshing email verification status:", error);
+      setStatus("error");
+      setMessage("We couldn't refresh your verification status. Please retry.");
+    }
+  }
+
+  return (
+    <div className="border-b border-[#e9e3eb] px-3 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
+        Email verification
+      </p>
+      <p className="mt-1 text-sm text-[#62596b]">
+        {emailVerified ? "Verified" : "Not verified"}
+      </p>
+      {!emailVerified && user.email && (
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+          <button
+            type="button"
+            onClick={resendVerificationEmail}
+            disabled={status === "sending"}
+            className="text-left text-xs font-medium text-[#75558c] hover:underline disabled:opacity-60"
+          >
+            {status === "sending" ? "Sending..." : "Resend verification email"}
+          </button>
+          <button
+            type="button"
+            onClick={checkVerificationStatus}
+            disabled={status === "checking"}
+            className="text-left text-xs font-medium text-[#75558c] hover:underline disabled:opacity-60"
+          >
+            {status === "checking" ? "Checking..." : "Check status"}
+          </button>
+        </div>
+      )}
+      {!user.email && (
+        <p className="mt-1 text-xs text-[#827a89]">
+          This account has no email address to verify.
+        </p>
+      )}
+      {message && (
+        <p
+          role={status === "error" ? "alert" : "status"}
+          className={`mt-2 text-xs ${
+            status === "error" ? "text-red-600" : "text-[#75558c]"
+          }`}
+        >
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function Navbar() {
   const { items } = useBasket();
-  const { user } = useAuth();
-  const handleLogout = async () => {
-  try {
-    await signOut(auth);
-    router.push("/login");
-  } catch (error) {
-    console.error("Error signing out:", error);
-  }
-};
+  const {
+    user,
+    profile,
+    emailVerified,
+    refreshEmailVerification,
+  } = useAuth();
   const router = useRouter();
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
   const [search, setSearch] = useState("");
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    setIsProfileMenuOpen(false);
+    try {
+      await signOut(auth);
+      router.push("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !profileMenuRef.current?.contains(event.target)
+      ) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+        profileButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isProfileMenuOpen]);
+
+  const profileInitial =
+    profile?.displayName.trim().charAt(0) ||
+    user?.displayName?.trim().charAt(0) ||
+    user?.email?.trim().charAt(0) ||
+    "K";
   const basketCount = items.reduce(
     (total, item) => total + item.quantity,
     0
@@ -153,122 +301,152 @@ export default function Navbar() {
           </Link>
 
           {/* Profile dropdown */}
-<div className="relative">
-  <button
-    type="button"
-    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-    title="Profile menu"
-    aria-label="Open profile menu"
-    aria-expanded={isProfileMenuOpen}
-    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#d9c9e5] hover:ring-2 hover:ring-[#d9c9e5]">
-    K
-  </button>
-  {isProfileMenuOpen && (
-    <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-[#e9e3eb] bg-[#fffdfb] p-3 shadow-lg">
-      
-      {user ? (
-        <>
-      {/* Account */}
-      <div className="border-b border-[#e9e3eb] py-2">
-        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
-          Your account
-        </p>
+          <div className="relative" ref={profileMenuRef}>
+            <button
+              ref={profileButtonRef}
+              type="button"
+              onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
+              title="Profile menu"
+              aria-label={
+                isProfileMenuOpen ? "Close profile menu" : "Open profile menu"
+              }
+              aria-expanded={isProfileMenuOpen}
+              aria-controls="profile-menu"
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e9e1f0] font-medium uppercase text-[#75558c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#d9c9e5] hover:ring-2 hover:ring-[#d9c9e5]"
+            >
+              {profileInitial}
+              {user?.photoURL && (
+                <Image
+                  key={user.photoURL}
+                  src={user.photoURL}
+                  width={40}
+                  height={40}
+                  alt=""
+                  unoptimized
+                  onError={(event) => {
+                    event.currentTarget.hidden = true;
+                  }}
+                  className="absolute inset-0 h-full w-full object-cover"/>
+              )}
+            </button>
+            {isProfileMenuOpen && (
+              <div
+                id="profile-menu"
+                className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-6rem)] w-[min(18rem,calc(100vw-2.5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-[#e9e3eb] bg-[#fffdfb] p-3 shadow-lg">
+                {user ? (
+                  <>
+                    {/* Account */}
+                    <div className="border-b border-[#e9e3eb] py-2">
+                      <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
+                        Your account
+                      </p>
 
-        <Link
-          href="/profile"
-          onClick={() => setIsProfileMenuOpen(false)}
-          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
-        >
-          My profile
-        </Link>
+                      <Link
+                        href={
+                          profile?.profileComplete
+                            ? `/u/${encodeURIComponent(profile.username)}`
+                            : "/account/setup"
+                        }
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]">
+                        My profile
+                      </Link>
 
-        <Link
-          href="/settings"
-          onClick={() => setIsProfileMenuOpen(false)}
-          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
-        >
-          Account settings
-        </Link>
-      </div>
+                      <Link
+                        href="/settings"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+                      >
+                        Account settings
+                      </Link>
+                    </div>
 
-      {/* Creative activity */}
-      <div className="border-b border-[#e9e3eb] py-2">
-        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
-          Creative activity
-        </p>
+                    {/* Creative activity */}
+                    <div className="border-b border-[#e9e3eb] py-2">
+                      <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
+                        Creative activity
+                      </p>
 
-        <Link
-          href="/engagement"
-          onClick={() => setIsProfileMenuOpen(false)}
-          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
-        >
-          Post engagement
-        </Link>
+                      <Link
+                        href="/engagement"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+                      >
+                        Post engagement
+                      </Link>
 
-        <Link
-          href="/bookmarks"
-          onClick={() => setIsProfileMenuOpen(false)}
-          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
-        >
-          Saved items
-        </Link>
-      </div>
+                      <Link
+                        href="/bookmarks"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+                      >
+                        Saved items
+                      </Link>
+                    </div>
 
-      {/* Creator tools */}
-      <div className="border-b border-[#e9e3eb] py-2">
-        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
-          Creator tools
-        </p>
+                    {/* Creator tools */}
+                    <div className="border-b border-[#e9e3eb] py-2">
+                      <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#a098a5]">
+                        Creator tools
+                      </p>
 
-        <Link
-          href="/creator-dashboard"
-          onClick={() => setIsProfileMenuOpen(false)}
-          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
-        >
-          Creator dashboard
-        </Link>
+                      <Link
+                        href="/creator-dashboard"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+                      >
+                        Creator dashboard
+                      </Link>
 
-        <Link
-          href="/my-listings"
-          onClick={() => setIsProfileMenuOpen(false)}
-          className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
-        >
-          My marketplace listings
-        </Link>
-      </div>
-        </>
-      ) : (
-        <div className="py-2">
-          <Link
-            href="/login"
-            onClick={() => setIsProfileMenuOpen(false)}
-            className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
-          >
-            Log in
-          </Link>
+                      <Link
+                        href="/my-listings"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+                      >
+                        My marketplace listings
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      className="block rounded-xl px-3 py-2 text-sm text-[#62596b] hover:bg-[#f3eef6]"
+                    >
+                      Log in
+                    </Link>
 
-          <Link
-            href="/register"
-            onClick={() => setIsProfileMenuOpen(false)}
-            className="block rounded-xl bg-[#75558c] px-3 py-2 text-center text-sm font-medium text-white hover:bg-[#59406f]"
-          >
-            Join Kindred
-          </Link>
-        </div>
-      )}
-          {/* Logout */}
-          {user && (
-            <div className="mt-2 border-t border-[#e9e3eb] pt-3">
-              <button
-                onClick={handleLogout}
-                className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-[#75558c] hover:bg-[#eee8f2]">
-                Log out
-              </button>
-            </div>
-          )}
-    </div>
-  )}
-</div>
+                    <Link
+                      href="/register"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      className="block rounded-xl bg-[#75558c] px-3 py-2 text-center text-sm font-medium text-white hover:bg-[#59406f]"
+                    >
+                      Join Kindred
+                    </Link>
+                  </div>
+                )}
+                {user && (
+                  <>
+                    <EmailVerificationStatus
+                      user={user}
+                      emailVerified={emailVerified}
+                      refreshEmailVerification={refreshEmailVerification}
+                    />
+                    <div className="mt-2 border-t border-[#e9e3eb] pt-3">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-[#75558c] hover:bg-[#eee8f2]"
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
         </div>
       </nav>

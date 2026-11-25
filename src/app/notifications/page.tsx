@@ -10,6 +10,7 @@ import {
   type KindredNotification,
   type NotificationType,
 } from "@/app/lib/notifications";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const filters = ["All", "Unread", "Likes", "Comments", "Follows", "Commissions"];
 
@@ -71,6 +72,7 @@ useEffect(() => {
   };
 
   return (
+  <ProtectedRoute>
   <>
     <main className="min-h-screen bg-[#faf8f5] text-[#46394f]">
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[220px_minmax(0,620px)]">
@@ -309,5 +311,6 @@ useEffect(() => {
       </div>
     </main>
   </>
+  </ProtectedRoute>
   );
 }

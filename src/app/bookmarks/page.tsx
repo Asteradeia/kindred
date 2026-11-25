@@ -7,6 +7,7 @@ import {
   toggleBookmark,
   type KindredPost,
 } from "@/app/lib/bookmarks";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function BookmarksPage() {
   const [savedPosts, setSavedPosts] = useState<KindredPost[]>([]);
@@ -31,8 +32,9 @@ export default function BookmarksPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
-      <div className="mx-auto max-w-5xl px-5 py-12 md:px-10">
+    <ProtectedRoute>
+      <main className="min-h-screen bg-[#faf8f5] text-[#30283a]">
+        <div className="mx-auto max-w-5xl px-5 py-12 md:px-10">
         {/* Header */}
         <header className="mb-10">
           <Link
@@ -166,7 +168,8 @@ export default function BookmarksPage() {
             </Link>
           </div>
         )}
-      </div>
-    </main>
+        </div>
+      </main>
+    </ProtectedRoute>
   );
 }

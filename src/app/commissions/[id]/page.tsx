@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useAuth } from "@/app/data/AuthContext";
 
 const listings = [
   {
@@ -132,6 +133,8 @@ const listings = [
 function CommissionDetailContent() {
   const params = useParams();
   const id = String(params.id);
+  const { user, profile, profileLoading } = useAuth();
+  const canRequestCommission = Boolean(user && profile?.profileComplete);
 
   const commission = listings.find((item) => item.id === id);
 
@@ -265,13 +268,35 @@ function CommissionDetailContent() {
                 </div>
               </div>
 
-              {commission.slots > 0 ? (
+              {commission.slots > 0 && user && profileLoading ? (
+                <button
+                  type="button"
+                  disabled
+                  className="mt-6 w-full cursor-wait rounded-full bg-[#e9e3eb] px-6 py-3.5 text-sm text-[#827a89]"
+                >
+                  Checking account...
+                </button>
+              ) : commission.slots > 0 && canRequestCommission ? (
                 <button
                   onClick={() => setShowRequestForm(!showRequestForm)}
                   className="mt-6 w-full rounded-full bg-[#75558c] px-6 py-3.5 text-sm font-medium text-white transition hover:bg-[#59406f]"
                 >
                   {showRequestForm ? "Hide request form" : "Request a commission"}
                 </button>
+              ) : commission.slots > 0 && user ? (
+                <Link
+                  href="/account/setup"
+                  className="mt-6 block w-full rounded-full bg-[#75558c] px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-[#59406f]"
+                >
+                  Complete your profile to request
+                </Link>
+              ) : commission.slots > 0 ? (
+                <Link
+                  href={`/login?redirect=${encodeURIComponent(`/commissions/${id}`)}`}
+                  className="mt-6 block w-full rounded-full bg-[#75558c] px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-[#59406f]"
+                >
+                  Log in to request a commission
+                </Link>
               ) : (
                 <button
                   disabled
@@ -289,7 +314,7 @@ function CommissionDetailContent() {
         </div>
 
         {/* Request form */}
-        {showRequestForm && (
+        {canRequestCommission && showRequestForm && (
           <section className="mt-12 rounded-[2rem] border border-[#e9e3eb] bg-white p-6 md:p-10">
             {requestSent ? (
               <div className="py-8 text-center">

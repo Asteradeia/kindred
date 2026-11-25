@@ -4,6 +4,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  getUserProfile,
+  type UserProfile,
+} from "@/app/data/userProfiles";
+import { getSafeInternalRedirect } from "@/app/data/authRedirect";
 import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
@@ -17,8 +22,27 @@ export default function LoginPage() {
   setLoading(true);
 
   try {
-    await signInWithEmailAndPassword(auth, email, password);
-    window.location.href = "/home";
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    let profile: UserProfile | null;
+
+    try {
+      profile = await getUserProfile(credential.user.uid);
+    } catch (profileLoadError: unknown) {
+      console.error("Error checking profile completion:", profileLoadError);
+      setError("We couldn't check your profile. Please try again.");
+      return;
+    }
+
+    const requestedDestination = getSafeInternalRedirect(
+      new URLSearchParams(window.location.search).get("redirect"),
+    );
+    const destination = profile?.profileComplete
+      ? requestedDestination
+      : requestedDestination.startsWith("/account/setup")
+        ? requestedDestination
+        : `/account/setup?redirect=${encodeURIComponent(requestedDestination)}`;
+
+    window.location.assign(destination);
   } catch (error: unknown) {
     if (error instanceof Error && "code" in error) {
       const firebaseError = error as { code: string };
@@ -88,6 +112,12 @@ export default function LoginPage() {
                 required
                 className="w-full rounded-xl border border-[#dcd2e2] px-4 py-3 text-sm outline-none transition focus:border-[#75558c]"
               />
+              <Link
+                href="/reset-password"
+                className="mt-2 inline-block text-sm text-[#75558c] hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
             {error && (
   <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">

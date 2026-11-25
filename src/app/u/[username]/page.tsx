@@ -11,6 +11,7 @@ import {
   toggleFollow,
   subscribeToFollows,
 } from "@/app/lib/follows";
+import { getUserProfileByUsername } from "@/app/data/userProfiles";
 const creators = {
   mossandmoon: {
     name: "Moss & Moon",
@@ -113,11 +114,77 @@ const creators = {
 
 type Creator = (typeof creators)[keyof typeof creators];
 
+type CreatorLookupState = {
+  username: string;
+  status: "found" | "not-found" | "error";
+  creator: Creator | null;
+};
+
 function CreatorProfileContent() {
   const params = useParams();
   const username = String(params.username).toLowerCase();
 
-  const creator = creators[username as keyof typeof creators] as Creator | undefined;
+  const staticCreator = creators[username as keyof typeof creators] as
+    | Creator
+    | undefined;
+  const [creatorLookup, setCreatorLookup] =
+    useState<CreatorLookupState | null>(null);
+  const creator =
+    staticCreator ??
+    (creatorLookup?.username === username ? creatorLookup.creator : undefined);
+  const isLoadingRegisteredProfile =
+    !staticCreator && creatorLookup?.username !== username;
+
+  useEffect(() => {
+    if (staticCreator) {
+      return;
+    }
+
+    let cancelled = false;
+    void getUserProfileByUsername(username)
+      .then((profile) => {
+        if (cancelled) {
+          return;
+        }
+
+        const registeredCreator: Creator | null = profile
+          ? {
+              name: profile.displayName,
+              username: profile.username,
+              avatar:
+                profile.displayName.trim().charAt(0).toUpperCase() ||
+                profile.username.charAt(0).toUpperCase(),
+              banner: "A little space to create",
+              bio: profile.about,
+              interests: profile.interests,
+              posts: 0,
+              followers: 0,
+              following: 0,
+              color: "#e9e1f0",
+              commissions: [],
+              portfolio: [],
+            }
+          : null;
+
+        setCreatorLookup({
+          username,
+          status: profile ? "found" : "not-found",
+          creator: registeredCreator,
+        });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        console.error("Error loading public Kindred profile:", error);
+        setCreatorLookup({ username, status: "error", creator: null });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [staticCreator, username]);
 
   const [following, setFollowing] = useState(false);
   const [followingCount, setFollowingCount] = useState(creator?.following ?? 0);
@@ -151,6 +218,28 @@ const creatorPosts = allPosts.filter((post) => {
   const profileUsername = username.trim().toLowerCase();
   return postUsername === profileUsername;
 });
+
+  if (!creator && isLoadingRegisteredProfile) {
+    return (
+      <main
+        className="flex min-h-[50vh] items-center justify-center bg-[#faf8f5] text-sm text-[#827a89]"
+        role="status"
+      >
+        Loading creator profile...
+      </main>
+    );
+  }
+
+  if (!creator && creatorLookup?.status === "error") {
+    return (
+      <main
+        className="flex min-h-[50vh] items-center justify-center bg-[#faf8f5] px-5 text-center text-sm text-[#827a89]"
+        role="alert"
+      >
+        We couldn&apos;t load this profile. Please refresh the page to try again.
+      </main>
+    );
+  }
 
   if (!creator) {
     return (

@@ -28,6 +28,7 @@ import {
   toggleFollow as toggleCreatorFollow,
   subscribeToFollows,
 } from "@/app/lib/follows";
+import { useAuth } from "@/app/data/AuthContext";
 const suggestedCreators = [
   { name: "Moss & Moon", username: "@mossandmoon", letter: "M", color: "#e3eadc" },
   { name: "PaperCrow", username: "@papercrow", letter: "P", color: "#f0dfe8" },
@@ -35,6 +36,11 @@ const suggestedCreators = [
 ];
 
 export default function KindredHome() {
+  const { user, profile, profileLoading } = useAuth();
+  const canCreatePost = Boolean(user && profile?.profileComplete);
+  const creatorName = profile?.displayName || user?.displayName || "Kellie";
+  const creatorUsername = profile?.username || "yourusername";
+  const creatorAvatar = creatorName.trim().charAt(0).toUpperCase() || "K";
   const [likedPostIds, setLikedPostIds] = useState<string[]>([]);
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
   const [following, setFollowing] = useState<string[]>([]);
@@ -117,9 +123,9 @@ function publishPost() {
 
   const post = {
     id: Date.now().toString(),
-    creator: "Kellie",
-    username: "yourusername",
-    avatar: "K",
+    creator: creatorName,
+    username: creatorUsername,
+    avatar: creatorAvatar,
     avatarColor: "#e9e1f0",
     content: newPost.trim(),
     tags,
@@ -188,9 +194,9 @@ function handleSubmitComment(postId: string) {
   const newComment: KindredComment = {
     id: Date.now().toString(),
     postId,
-    username: "yourusername",
-    displayName: "Kellie",
-    avatar: "K",
+    username: creatorUsername,
+    displayName: creatorName,
+    avatar: creatorAvatar,
     content,
     createdAt: new Date().toISOString(),
   };
@@ -219,13 +225,22 @@ function toggleFollow(username: string) {
           <div className="sticky top-24 space-y-6">
             <div className="rounded-3xl border border-[#e9e3eb] bg-white p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e9e1f0] text-lg font-medium text-[#75558c]">K</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e9e1f0] text-lg font-medium text-[#75558c]">
+                  {creatorAvatar}
+                </div>
                 <div>
-                  <p className="font-medium">Kellie</p>
-                  <p className="text-xs text-[#827a89]">@yourusername</p>
+                  <p className="font-medium">{creatorName}</p>
+                  <p className="text-xs text-[#827a89]">@{creatorUsername}</p>
                 </div>
               </div>
-              <Link href="/profile" className="mt-4 block rounded-full border border-[#e9e3eb] py-2 text-center text-sm text-[#75558c] hover:bg-[#eee8f2]">
+              <Link
+                href={
+                  profile?.profileComplete
+                    ? `/u/${encodeURIComponent(profile.username)}`
+                    : "/profile"
+                }
+                className="mt-4 block rounded-full border border-[#e9e3eb] py-2 text-center text-sm text-[#75558c] hover:bg-[#eee8f2]"
+              >
                 View profile
               </Link>
             </div>
@@ -274,82 +289,114 @@ function toggleFollow(username: string) {
 
           {/* Post composer */}
           <div className="mb-6 rounded-3xl border border-[#e9e3eb] bg-white p-5">
-            <div className="flex gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c]">K</div>
-              <textarea
-                value={newPost}
-                onChange={(e) => setNewPost(e.target.value)}
-                placeholder="What are you creating today?"
-                rows={3}
-                className="w-full resize-none rounded-2xl bg-[#faf8f5] p-4 text-sm outline-none placeholder:text-[#a49aa8] focus:ring-1 focus:ring-[#d9c9e5]"
-              />
-            </div>
-            {showTags && (
-              <div className="mt-3 ml-14">
-                <input
-                  type="text"
-                  value={newTags}
-                  onChange={(e) => setNewTags(e.target.value)}
-                  placeholder="Add tags (e.g. fantasy, art, wip)"
-                  className="w-full rounded-xl border border-[#e9e3eb] bg-[#faf8f5] px-4 py-3 text-sm outline-none focus:border-[#b69ac8]"
-                />
-                <p className="mt-1 text-xs text-[#a19aa8]">
-                  Separate tags with spaces or commas.
+            {profileLoading ? (
+              <p className="text-sm text-[#827a89]">Checking your account...</p>
+            ) : canCreatePost ? (
+              <>
+                <div className="flex gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9e1f0] font-medium text-[#75558c]">
+                    {creatorAvatar}
+                  </div>
+                  <textarea
+                    value={newPost}
+                    onChange={(e) => setNewPost(e.target.value)}
+                    placeholder="What are you creating today?"
+                    rows={3}
+                    className="w-full resize-none rounded-2xl bg-[#faf8f5] p-4 text-sm outline-none placeholder:text-[#a49aa8] focus:ring-1 focus:ring-[#d9c9e5]"
+                  />
+                </div>
+                {showTags && (
+                  <div className="mt-3 ml-14">
+                    <input
+                      type="text"
+                      value={newTags}
+                      onChange={(e) => setNewTags(e.target.value)}
+                      placeholder="Add tags (e.g. fantasy, art, wip)"
+                      className="w-full rounded-xl border border-[#e9e3eb] bg-[#faf8f5] px-4 py-3 text-sm outline-none focus:border-[#b69ac8]"
+                    />
+                    <p className="mt-1 text-xs text-[#a19aa8]">
+                      Separate tags with spaces or commas.
+                    </p>
+                  </div>
+                )}
+                {imagePreview && (
+                  <div className="relative mt-4 ml-14">
+                    <img
+                      src={imagePreview}
+                      alt="Post preview"
+                      className="max-h-80 w-full rounded-2xl object-contain"
+                    />
+                    <button
+                      onClick={() => {
+                        setImagePreview(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                      }}
+                      className="absolute right-2 top-2 rounded-full bg-black/60 px-3 py-1 text-sm text-white hover:bg-black/80"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                )}
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex gap-4 text-sm text-[#827a89]">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="transition hover:text-[#75558c]"
+                    >
+                      ▧ Photo
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                    <button
+                      onClick={() => setShowTags(!showTags)}
+                      className={`transition hover:text-[#75558c] ${
+                        showTags ? "text-[#75558c]" : ""
+                      }`}
+                    >
+                      ✧ Tags
+                    </button>
+                  </div>
+                  <button
+                    disabled={!newPost.trim() && !imagePreview}
+                    onClick={publishPost}
+                    className="rounded-full bg-[#75558c] px-5 py-2 text-sm text-white transition hover:bg-[#59406f] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Post
+                  </button>
+                </div>
+              </>
+            ) : user ? (
+              <>
+                <p className="text-sm text-[#827a89]">
+                  Finish setting up your profile before sharing with the community.
                 </p>
-              </div>
+                <Link
+                  href="/account/setup"
+                  className="mt-4 inline-block rounded-full bg-[#75558c] px-5 py-2 text-sm text-white transition hover:bg-[#59406f]"
+                >
+                  Complete your profile
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-[#827a89]">
+                  Log in to share what you&apos;re creating with the community.
+                </p>
+                <Link
+                  href="/login?redirect=%2Fhome"
+                  className="mt-4 inline-block rounded-full bg-[#75558c] px-5 py-2 text-sm text-white transition hover:bg-[#59406f]"
+                >
+                  Log in to create a post
+                </Link>
+              </>
             )}
-            {imagePreview && (
-              <div className="relative mt-4 ml-14">
-                <img
-                  src={imagePreview}
-                  alt="Post preview"
-                  className="max-h-80 w-full rounded-2xl object-contain"
-                />
-                <button
-                  onClick={() => {
-                    setImagePreview(null);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = "";
-                    }
-                  }}
-                  className="absolute right-2 top-2 rounded-full bg-black/60 px-3 py-1 text-sm text-white hover:bg-black/80"
-                >
-                  ✕ Remove
-                </button>
-              </div>
-            )}
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex gap-4 text-sm text-[#827a89]">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="transition hover:text-[#75558c]"
-                >
-                  ▧ Photo
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-                <button
-                  onClick={() => setShowTags(!showTags)}
-                  className={`transition hover:text-[#75558c] ${
-                    showTags ? "text-[#75558c]" : ""
-                  }`}
-                >
-                  ✧ Tags
-                </button>
-              </div>
-              <button
-              disabled={!newPost.trim() && !imagePreview}
-             onClick={publishPost}
-                className="rounded-full bg-[#75558c] px-5 py-2 text-sm text-white transition hover:bg-[#59406f] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Post
-              </button>
-            </div>
           </div>
 
           {/* Feed selector */}

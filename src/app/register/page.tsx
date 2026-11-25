@@ -2,7 +2,10 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function RegisterPage() {
@@ -11,6 +14,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
   event.preventDefault();
   setError("");
@@ -23,8 +27,19 @@ export default function RegisterPage() {
   setLoading(true);
 
   try {
-    await createUserWithEmailAndPassword(auth, email, password);
-    window.location.href = "/home";
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    try {
+      await sendEmailVerification(credential.user);
+    } catch (verificationError: unknown) {
+      console.error("Error sending email verification:", verificationError);
+      setAccountCreated(true);
+      setError(
+        "Your account was created, but we couldn't send a verification email. Continue to setup and resend it from your account menu.",
+      );
+      return;
+    }
+
+    window.location.assign("/account/setup");
   } catch (error: unknown) {
     if (error instanceof Error && "code" in error) {
       const firebaseError = error as { code: string };
@@ -111,11 +126,28 @@ export default function RegisterPage() {
               />
             </div>
 
+            {error && (
+              <p
+                role={accountCreated ? "alert" : undefined}
+                className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600"
+              >
+                {error}
+              </p>
+            )}
+            {accountCreated && (
+              <Link
+                href="/account/setup"
+                className="block text-center text-sm font-medium text-[#75558c] hover:underline"
+              >
+                Continue to profile setup
+              </Link>
+            )}
             <button
               type="submit"
-              className="w-full rounded-full bg-[#75558c] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#59406f]"
+              disabled={loading || accountCreated}
+              className="w-full rounded-full bg-[#75558c] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#59406f] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Create account
+              {accountCreated ? "Account created" : "Create account"}
             </button>
           </form>
 
