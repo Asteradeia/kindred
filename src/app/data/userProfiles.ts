@@ -1,5 +1,6 @@
 import {
   doc,
+  deleteField,
   getDoc,
   runTransaction,
   serverTimestamp,
@@ -14,6 +15,21 @@ export const CREATIVE_INTERESTS = [
 ] as const;
 
 export type CreativeInterest = (typeof CREATIVE_INTERESTS)[number];
+export type ProfileVisibility = "public" | "private";
+
+export interface NotificationPreferences {
+  likes: boolean;
+  comments: boolean;
+  follows: boolean;
+  commissions: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  likes: true,
+  comments: true,
+  follows: true,
+  commissions: true,
+};
 
 export interface UserProfile {
   uid: string;
@@ -22,6 +38,8 @@ export interface UserProfile {
   usernameNormalized: string;
   about: string;
   interests: CreativeInterest[];
+  profileVisibility: ProfileVisibility;
+  notificationPreferences: NotificationPreferences;
   profileComplete: boolean;
 }
 
@@ -30,6 +48,8 @@ export interface UserProfileInput {
   username: string;
   about: string;
   interests: CreativeInterest[];
+  profileVisibility?: ProfileVisibility;
+  notificationPreferences?: NotificationPreferences;
 }
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -61,7 +81,37 @@ function isCreativeInterest(value: unknown): value is CreativeInterest {
   return CREATIVE_INTERESTS.some((interest) => interest === value);
 }
 
-function parseUserProfile(uid: string, data: Record<string, unknown>): UserProfile {
+function parseNotificationPreferences(value: unknown): NotificationPreferences {
+  const data =
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {};
+
+  return {
+    likes:
+      typeof data.likes === "boolean"
+        ? data.likes
+        : DEFAULT_NOTIFICATION_PREFERENCES.likes,
+    comments:
+      typeof data.comments === "boolean"
+        ? data.comments
+        : DEFAULT_NOTIFICATION_PREFERENCES.comments,
+    follows:
+      typeof data.follows === "boolean"
+        ? data.follows
+        : DEFAULT_NOTIFICATION_PREFERENCES.follows,
+    commissions:
+      typeof data.commissions === "boolean"
+        ? data.commissions
+        : DEFAULT_NOTIFICATION_PREFERENCES.commissions,
+  };
+}
+
+function parseUserProfile(
+  uid: string,
+  data: Record<string, unknown>,
+  privateSettings: Record<string, unknown> = {},
+): UserProfile {
   const displayName =
     typeof data.displayName === "string" ? data.displayName : "";
   const username = typeof data.username === "string" ? data.username : "";
@@ -73,6 +123,9 @@ function parseUserProfile(uid: string, data: Record<string, unknown>): UserProfi
   const interests = Array.isArray(data.interests)
     ? data.interests.filter(isCreativeInterest)
     : [];
+  const notificationPreferences = parseNotificationPreferences(
+    privateSettings.notificationPreferences,
+  );
 
   return {
     uid,
@@ -81,6 +134,9 @@ function parseUserProfile(uid: string, data: Record<string, unknown>): UserProfi
     usernameNormalized,
     about,
     interests,
+    profileVisibility:
+      data.profileVisibility === "private" ? "private" : "public",
+    notificationPreferences,
     profileComplete:
       data.profileComplete === true &&
       displayName.trim().length > 0 &&
@@ -88,13 +144,70 @@ function parseUserProfile(uid: string, data: Record<string, unknown>): UserProfi
   };
 }
 
-export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const snapshot = await getDoc(doc(db, "users", uid));
-  return snapshot.exists() ? parseUserProfile(uid, snapshot.data()) : null;
+export async function getUserProfile(
+  uid: string,
+  includePrivateSettings = true,
+): Promise<UserProfile | null> {
+  const userRef = doc(db, "users", uid);
+  const snapshot = await getDoc(userRef);
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  const privateSettingsRef = doc(db, "users", uid, "private", "settings");
+  let userData = snapshot.data();
+  let privateSettings = includePrivateSettings
+    ? await getDoc(privateSettingsRef)
+    : null;
+
+  if (includePrivateSettings && userData.notificationPreferences !== undefined) {
+    const userRef = doc(db, "users", uid);
+    await runTransaction(db, async (transaction) => {
+      const [latestUser, latestSettings] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(privateSettingsRef),
+      ]);
+      if (!latestUser.exists()) return;
+
+      const legacyPreferences = latestUser.data().notificationPreferences;
+      if (legacyPreferences === undefined) return;
+
+      const currentPrivatePreferences = latestSettings.exists()
+        ? latestSettings.data().notificationPreferences
+        : undefined;
+      transaction.set(
+        privateSettingsRef,
+        {
+          notificationPreferences: parseNotificationPreferences(
+            currentPrivatePreferences ?? legacyPreferences,
+          ),
+        },
+        { merge: true },
+      );
+      transaction.update(userRef, {
+        notificationPreferences: deleteField(),
+      });
+    });
+
+    const refreshed = await Promise.all([
+      getDoc(userRef),
+      getDoc(privateSettingsRef),
+    ]);
+    if (!refreshed[0].exists()) return null;
+    userData = refreshed[0].data();
+    privateSettings = refreshed[1];
+  }
+
+  return parseUserProfile(
+    uid,
+    userData,
+    privateSettings?.data() ?? {},
+  );
 }
 
 export async function getUserProfileByUsername(
   username: string,
+  requesterUid?: string,
 ): Promise<UserProfile | null> {
   const normalizedUsername = normalizeUsername(username);
 
@@ -115,8 +228,23 @@ export async function getUserProfileByUsername(
     throw new Error("The username record does not contain a valid user ID.");
   }
 
-  const profile = await getUserProfile(uid);
-  return profile?.profileComplete ? profile : null;
+  let profile: UserProfile | null;
+  try {
+    profile = await getUserProfile(uid, requesterUid === uid);
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "permission-denied"
+    ) {
+      return null;
+    }
+    throw error;
+  }
+  return profile?.profileComplete &&
+    (profile.profileVisibility === "public" || profile.uid === requesterUid)
+    ? profile
+    : null;
 }
 
 export async function isUsernameAvailable(
@@ -161,6 +289,7 @@ export async function saveUserProfile(
 
   const usernameRef = doc(db, "usernames", usernameNormalized);
   const userRef = doc(db, "users", uid);
+  const privateSettingsRef = doc(db, "users", uid, "private", "settings");
   const interests = [...new Set(input.interests.filter(isCreativeInterest))];
 
   await runTransaction(db, async (transaction) => {
@@ -210,12 +339,20 @@ export async function saveUserProfile(
         usernameNormalized,
         about,
         interests,
+        profileVisibility: input.profileVisibility ?? "public",
         profileComplete: true,
         ...(userSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
         updatedAt: serverTimestamp(),
       },
       { merge: true },
     );
+    if (input.notificationPreferences) {
+      transaction.set(
+        privateSettingsRef,
+        { notificationPreferences: input.notificationPreferences },
+        { merge: true },
+      );
+    }
   });
 
   return {
@@ -225,6 +362,42 @@ export async function saveUserProfile(
     usernameNormalized,
     about,
     interests,
+    profileVisibility: input.profileVisibility ?? "public",
+    notificationPreferences:
+      input.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
     profileComplete: true,
   };
+}
+
+export async function deleteUserProfile(uid: string): Promise<void> {
+  const userRef = doc(db, "users", uid);
+  const privateSettingsRef = doc(db, "users", uid, "private", "settings");
+
+  await runTransaction(db, async (transaction) => {
+    const [userSnapshot, privateSettingsSnapshot] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(privateSettingsRef),
+    ]);
+    const username =
+      userSnapshot.exists() &&
+      typeof userSnapshot.data().usernameNormalized === "string"
+        ? userSnapshot.data().usernameNormalized
+        : null;
+
+    if (username) {
+      const usernameRef = doc(db, "usernames", username);
+      const usernameSnapshot = await transaction.get(usernameRef);
+
+      if (usernameSnapshot.exists() && usernameSnapshot.data().uid === uid) {
+        transaction.delete(usernameRef);
+      }
+    }
+
+    if (userSnapshot.exists()) {
+      transaction.delete(userRef);
+    }
+    if (privateSettingsSnapshot.exists()) {
+      transaction.delete(privateSettingsRef);
+    }
+  });
 }

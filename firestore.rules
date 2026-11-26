@@ -1,0 +1,232 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validUsername(username) {
+      return username is string
+        && username.matches('^[a-z0-9_]{3,20}$')
+        && !(username in [
+          'mossandmoon',
+          'papercrow',
+          'littlefernstudio',
+          'pixelwitch',
+          'inkandivy',
+          'starlingstudio'
+        ]);
+    }
+
+    function validUserProfile(uid) {
+      return request.resource.data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'username',
+          'usernameNormalized',
+          'about',
+          'interests',
+          'profileVisibility',
+          'profileComplete',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid',
+          'displayName',
+          'username',
+          'usernameNormalized',
+          'about',
+          'interests',
+          'profileVisibility',
+          'profileComplete'
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 50
+        && validUsername(request.resource.data.usernameNormalized)
+        && request.resource.data.username == request.resource.data.usernameNormalized
+        && request.resource.data.about is string
+        && request.resource.data.about.size() <= 200
+        && request.resource.data.interests is list
+        && request.resource.data.profileVisibility in ['public', 'private']
+        && request.resource.data.profileComplete == true;
+    }
+
+    function profileMatchesAuthor(uid, data) {
+      let profilePath = /databases/$(database)/documents/users/$(uid);
+      return exists(profilePath)
+        && get(profilePath).data.profileComplete == true
+        && get(profilePath).data.displayName == data.creator
+        && get(profilePath).data.usernameNormalized == data.username;
+    }
+
+    function profileMatchesCommentAuthor(uid, data) {
+      let profilePath = /databases/$(database)/documents/users/$(uid);
+      return exists(profilePath)
+        && get(profilePath).data.profileComplete == true
+        && get(profilePath).data.displayName == data.displayName
+        && get(profilePath).data.usernameNormalized == data.username;
+    }
+
+    match /users/{uid} {
+      allow get: if owns(uid)
+        || (
+          !resource.data.keys().hasAny(['notificationPreferences'])
+          && (
+            !resource.data.keys().hasAny(['profileVisibility'])
+            || resource.data.profileVisibility == 'public'
+          )
+        );
+      allow list: if false;
+      allow create: if owns(uid)
+        && validUserProfile(uid)
+        && getAfter(
+          /databases/$(database)/documents/usernames/$(request.resource.data.usernameNormalized)
+        ).data.uid == uid;
+      allow update: if owns(uid)
+        && validUserProfile(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'username',
+          'usernameNormalized',
+          'about',
+          'interests',
+          'profileVisibility',
+          'profileComplete',
+          'updatedAt',
+          'notificationPreferences'
+        ])
+        && getAfter(
+          /databases/$(database)/documents/usernames/$(request.resource.data.usernameNormalized)
+        ).data.uid == uid;
+      allow delete: if owns(uid);
+
+      match /private/{documentId} {
+        allow read: if owns(uid) && documentId == 'settings';
+        allow create, update: if owns(uid)
+          && documentId == 'settings'
+          && request.resource.data.keys().hasOnly(['notificationPreferences'])
+          && request.resource.data.notificationPreferences.keys().hasOnly([
+            'likes',
+            'comments',
+            'follows',
+            'commissions'
+          ])
+          && request.resource.data.notificationPreferences.keys().hasAll([
+            'likes',
+            'comments',
+            'follows',
+            'commissions'
+          ])
+          && request.resource.data.notificationPreferences.likes is bool
+          && request.resource.data.notificationPreferences.comments is bool
+          && request.resource.data.notificationPreferences.follows is bool
+          && request.resource.data.notificationPreferences.commissions is bool;
+        allow delete: if owns(uid) && documentId == 'settings';
+      }
+    }
+
+    match /usernames/{username} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if owns(request.resource.data.uid)
+        && request.resource.data.keys().hasOnly(['uid', 'username', 'updatedAt'])
+        && request.resource.data.username == username
+        && validUsername(username)
+        && getAfter(
+          /databases/$(database)/documents/users/$(request.resource.data.uid)
+        ).data.usernameNormalized == username;
+      allow update: if owns(resource.data.uid)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.keys().hasOnly(['uid', 'username', 'updatedAt'])
+        && request.resource.data.username == username
+        && validUsername(username)
+        && getAfter(
+          /databases/$(database)/documents/users/$(request.resource.data.uid)
+        ).data.usernameNormalized == username;
+      allow delete: if owns(resource.data.uid)
+        && (
+          !existsAfter(
+            /databases/$(database)/documents/users/$(resource.data.uid)
+          )
+          || getAfter(
+            /databases/$(database)/documents/users/$(resource.data.uid)
+          ).data.usernameNormalized != username
+        );
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'authorUid',
+          'creator',
+          'username',
+          'avatar',
+          'avatarColor',
+          'content',
+          'tags',
+          'image',
+          'time',
+          'likes',
+          'comments',
+          'createdAt'
+        ])
+        && request.resource.data.authorUid == request.auth.uid
+        && profileMatchesAuthor(request.auth.uid, request.resource.data)
+        && request.resource.data.content is string
+        && request.resource.data.content.size() <= 5000
+        && request.resource.data.tags is list
+        && request.resource.data.tags.size() <= 20
+        && request.resource.data.likes == 0
+        && request.resource.data.comments == 0;
+      allow update: if signedIn()
+        && resource.data.authorUid == request.auth.uid
+        && request.resource.data.authorUid == resource.data.authorUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'content',
+          'tags',
+          'image',
+          'updatedAt'
+        ])
+        && profileMatchesAuthor(request.auth.uid, request.resource.data);
+      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'postId',
+          'authorUid',
+          'username',
+          'displayName',
+          'avatar',
+          'content',
+          'createdAt'
+        ])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 2000
+        && profileMatchesCommentAuthor(request.auth.uid, request.resource.data);
+      allow update: if signedIn()
+        && resource.data.authorUid == request.auth.uid
+        && request.resource.data.authorUid == resource.data.authorUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'content'
+        ])
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 2000;
+      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+  }
+}

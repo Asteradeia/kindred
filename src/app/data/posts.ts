@@ -1,6 +1,7 @@
 
 export type KindredPost = {
   id: string;
+  authorUid?: string;
   creator: string;
   username: string;
   avatar: string;

@@ -122,8 +122,11 @@ export default function Navbar() {
   const router = useRouter();
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const [search, setSearch] = useState("");
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     setIsProfileMenuOpen(false);
@@ -136,7 +139,7 @@ export default function Navbar() {
   };
 
   useEffect(() => {
-    if (!isProfileMenuOpen) {
+    if (!isProfileMenuOpen && !isMobileMenuOpen) {
       return;
     }
 
@@ -147,12 +150,23 @@ export default function Navbar() {
       ) {
         setIsProfileMenuOpen(false);
       }
+      if (
+        event.target instanceof Node &&
+        !mobileMenuRef.current?.contains(event.target)
+      ) {
+        setIsMobileMenuOpen(false);
+      }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsProfileMenuOpen(false);
-        profileButtonRef.current?.focus();
+        setIsMobileMenuOpen(false);
+        if (isProfileMenuOpen) {
+          profileButtonRef.current?.focus();
+        } else {
+          mobileMenuButtonRef.current?.focus();
+        }
       }
     };
 
@@ -163,7 +177,7 @@ export default function Navbar() {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isProfileMenuOpen]);
+  }, [isMobileMenuOpen, isProfileMenuOpen]);
 
   const profileInitial =
     profile?.displayName.trim().charAt(0) ||
@@ -177,7 +191,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#e9e3eb] bg-[#faf8f5]/95 backdrop-blur">
-      <nav className="mx-auto flex min-h-[72px] max-w-[1440px] items-center justify-between gap-6 px-5">
+      <nav className="relative mx-auto flex min-h-[72px] max-w-[1440px] items-center justify-between gap-6 px-5">
 
         {/* Logo */}
         <Link
@@ -212,6 +226,79 @@ export default function Navbar() {
 
                 {/* Right side */}
         <div className="flex items-center gap-3">
+                  <div className="relative md:hidden" ref={mobileMenuRef}>
+                    <button
+                      ref={mobileMenuButtonRef}
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen((isOpen) => !isOpen);
+                        setIsProfileMenuOpen(false);
+                      }}
+                      aria-expanded={isMobileMenuOpen}
+                      aria-controls="mobile-navigation"
+                      aria-label={isMobileMenuOpen ? "Close navigation" : "Open navigation"}
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-[#75558c] transition hover:bg-[#eee8f5]"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        className="h-5 w-5"
+                        aria-hidden="true"
+                      >
+                        {isMobileMenuOpen ? (
+                          <path d="m6 6 12 12M18 6 6 18" />
+                        ) : (
+                          <path d="M4 7h16M4 12h16M4 17h16" />
+                        )}
+                      </svg>
+                    </button>
+                    <div
+                      id="mobile-navigation"
+                      className={`absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl border border-[#e9e3eb] bg-[#fffdfb] p-3 shadow-lg ${
+                        isMobileMenuOpen ? "block" : "hidden"
+                      }`}
+                    >
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (search.trim()) {
+                            setIsMobileMenuOpen(false);
+                            router.push(`/search?query=${encodeURIComponent(search.trim())}`);
+                          }
+                        }}
+                        className="mb-2 lg:hidden"
+                      >
+                        <input
+                          value={search}
+                          onChange={(event) => setSearch(event.target.value)}
+                          placeholder="Search Kindred..."
+                          aria-label="Search Kindred"
+                          className="w-full rounded-full border border-[#e9e3eb] bg-white px-4 py-2 text-sm outline-none transition focus:border-[#b69ac8]"
+                        />
+                      </form>
+                      <nav aria-label="Mobile navigation" className="space-y-1">
+                        {[
+                          ["Explore", "/discover"],
+                          ["Creators", "/discover"],
+                          ["Commissions", "/commissions"],
+                          ["Community", "/home"],
+                          ["Marketplace", "/archive"],
+                        ].map(([label, href]) => (
+                          <Link
+                            key={label}
+                            href={href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block rounded-xl px-3 py-2.5 text-sm font-medium text-[#62596b] hover:bg-[#f3eef6] hover:text-[#75558c]"
+                          >
+                            {label}
+                          </Link>
+                        ))}
+                      </nav>
+                    </div>
+                  </div>
 
           {/* Search */}
           <form
@@ -305,7 +392,10 @@ export default function Navbar() {
             <button
               ref={profileButtonRef}
               type="button"
-              onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
+              onClick={() => {
+                setIsProfileMenuOpen((isOpen) => !isOpen);
+                setIsMobileMenuOpen(false);
+              }}
               title="Profile menu"
               aria-label={
                 isProfileMenuOpen ? "Close profile menu" : "Open profile menu"

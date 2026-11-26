@@ -12,6 +12,7 @@ import {
   subscribeToFollows,
 } from "@/app/lib/follows";
 import { getUserProfileByUsername } from "@/app/data/userProfiles";
+import { useAuth } from "@/app/data/AuthContext";
 const creators = {
   mossandmoon: {
     name: "Moss & Moon",
@@ -123,6 +124,7 @@ type CreatorLookupState = {
 function CreatorProfileContent() {
   const params = useParams();
   const username = String(params.username).toLowerCase();
+  const { user } = useAuth();
 
   const staticCreator = creators[username as keyof typeof creators] as
     | Creator
@@ -141,7 +143,7 @@ function CreatorProfileContent() {
     }
 
     let cancelled = false;
-    void getUserProfileByUsername(username)
+    void getUserProfileByUsername(username, user?.uid)
       .then((profile) => {
         if (cancelled) {
           return;
@@ -184,31 +186,34 @@ function CreatorProfileContent() {
     return () => {
       cancelled = true;
     };
-  }, [staticCreator, username]);
+  }, [staticCreator, user?.uid, username]);
 
   const [following, setFollowing] = useState(false);
-  const [followingCount, setFollowingCount] = useState(creator?.following ?? 0);
+  const followingCount = creator?.following ?? 0;
 useEffect(() => {
   const refreshFollowing = () => {
     setFollowing(getFollowedCreators().includes(username));
   };
 
-  setFollowingCount(creator?.following ?? 0);
-
   queueMicrotask(refreshFollowing);
   const unsubscribe = subscribeToFollows(refreshFollowing);
 
   return unsubscribe;
-}, [username, creator]);
+}, [username]);
   const [activeTab, setActiveTab] = useState("Posts");
   const [allPosts, setAllPosts] = useState<KindredPost[]>([]);
 
 useEffect(() => {
-  setAllPosts(getPosts());
+  const refreshPosts = () => {
+    void getPosts()
+      .then(setAllPosts)
+      .catch((error: unknown) => {
+        console.error("Could not load Kindred posts:", error);
+      });
+  };
+  queueMicrotask(refreshPosts);
 
-  const unsubscribe = subscribeToPosts(() => {
-    setAllPosts(getPosts());
-  });
+  const unsubscribe = subscribeToPosts(refreshPosts);
 
   return unsubscribe;
 }, []);
@@ -364,7 +369,7 @@ const creatorPosts = allPosts.filter((post) => {
         </h2>
 
         <p className="mt-3 text-[#827a89]">
-          {creator.name} hasn't shared any posts yet.
+          {creator.name} hasn&apos;t shared any posts yet.
         </p>
       </div>
     ) : (

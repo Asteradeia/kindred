@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { KindredPost } from "@/app/data/posts";
@@ -21,6 +22,20 @@ const creators = [
 const categories = ["All", "Art", "Writing", "Gaming", "Crafts", "Photography", "Music", "Cosplay"];
 
 export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[#faf8f5] text-sm text-[#827a89]">
+          Loading search...
+        </main>
+      }
+    >
+      <SearchContent />
+    </Suspense>
+  );
+}
+
+function SearchContent() {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeTab, setActiveTab] = useState("Posts");
@@ -29,15 +44,25 @@ const [showAllTags, setShowAllTags] = useState(false);
 const searchParams = useSearchParams();
 
 useEffect(() => {
-  const urlQuery = searchParams.get("query");
+  let cancelled = false;
+  const urlQuery = searchParams.get("query") ?? "";
+  queueMicrotask(() => {
+    if (!cancelled) setQuery(urlQuery);
+  });
 
-  if (urlQuery) {
-    setQuery(urlQuery);
-  }
+  return () => {
+    cancelled = true;
+  };
 }, [searchParams]);
 
 useEffect(() => {
-  const refreshPosts = () => setAllPosts(getPosts());
+  const refreshPosts = () => {
+    void getPosts()
+      .then(setAllPosts)
+      .catch((error: unknown) => {
+        console.error("Could not load Kindred posts:", error);
+      });
+  };
   queueMicrotask(refreshPosts);
 
   const unsubscribe = subscribeToPosts(() => {

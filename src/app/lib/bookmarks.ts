@@ -46,3 +46,12 @@ export function toggleBookmark(post: KindredPost): KindredPost[] {
 
   return updated;
 }
+
+export function removeBookmark(postId: string | number): KindredPost[] {
+  const updated = getBookmarks().filter(
+    (post) => String(post.id) !== String(postId),
+  );
+  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(updated));
+  window.dispatchEvent(new Event("kindred-bookmarks-updated"));
+  return updated;
+}

@@ -2,6 +2,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -9,6 +10,7 @@ import {
 import { auth } from "@/lib/firebase";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,7 +41,7 @@ export default function RegisterPage() {
       return;
     }
 
-    window.location.assign("/account/setup");
+    router.replace("/account/setup");
   } catch (error: unknown) {
     if (error instanceof Error && "code" in error) {
       const firebaseError = error as { code: string };

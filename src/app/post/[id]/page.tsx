@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getPosts, subscribeToPosts } from "@/app/lib/sharedPosts";
@@ -12,10 +13,25 @@ import {
 } from "@/app/lib/likes";
 import { getBookmarks, toggleBookmark } from "@/app/lib/bookmarks";
 import { sharePost } from "@/app/lib/shares";
-
 import { addComment, getComments, subscribeToComments } from "@/app/lib/comments";
 import type { KindredComment } from "@/app/lib/comments";
+import { useAuth } from "@/app/data/AuthContext";
 export default function PostPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[#faf8f5] text-sm text-[#827a89]">
+          Loading post...
+        </main>
+      }
+    >
+      <PostPageContent />
+    </Suspense>
+  );
+}
+
+function PostPageContent() {
+  const { user, profile } = useAuth();
   const [post, setPost] = useState<KindredPost | null>(null);
   const params = useParams();
   const postId = String(params.id);
@@ -25,15 +41,21 @@ export default function PostPage() {
   const [commentInput, setCommentInput] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [commentError, setCommentError] = useState("");
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setPost(getPosts().find((item) => String(item.id) === postId) ?? null);
-    });
+    const refreshPost = () => {
+      void getPosts()
+        .then((posts) => {
+          setPost(posts.find((item) => String(item.id) === postId) ?? null);
+        })
+        .catch((error: unknown) => {
+          console.error("Could not load post:", error);
+        });
+    };
+    queueMicrotask(refreshPost);
 
-    const unsubscribe = subscribeToPosts(() => {
-      setPost(getPosts().find((item) => String(item.id) === postId) ?? null);
-    });
+    const unsubscribe = subscribeToPosts(refreshPost);
 
     return unsubscribe;
   }, [postId]);
@@ -44,7 +66,13 @@ export default function PostPage() {
     setBookmarked(
       getBookmarks().some((bookmarkedPost) => String(bookmarkedPost.id) === postId),
     );
-    setComments(getComments().filter((comment) => comment.postId === postId));
+    void getComments()
+      .then((allComments) => {
+        setComments(allComments.filter((comment) => comment.postId === postId));
+      })
+      .catch((error: unknown) => {
+        console.error("Could not load post comments:", error);
+      });
   };
   queueMicrotask(refreshInteractions);
 
@@ -76,24 +104,30 @@ export default function PostPage() {
     setShareCopied(success);
   }
 
-  function handleSubmitComment() {
+  async function handleSubmitComment() {
   const content = commentInput.trim();
 
-  if (!content) return;
+  if (!content || !user || !profile) return;
 
   const newComment: KindredComment = {
-    id: Date.now().toString(),
+    id: "",
     postId,
-    username: "yourusername",
-    displayName: "Kellie",
-    avatar: "K",
+    authorUid: user.uid,
+    username: profile.username,
+    displayName: profile.displayName,
+    avatar: profile.displayName.trim().charAt(0).toUpperCase() || "K",
     content,
-    createdAt: new Date().toISOString(),
+    createdAt: "",
   };
 
-  addComment(newComment);
-  setComments(getComments().filter((comment) => comment.postId === postId));
-  setCommentInput("");
+  setCommentError("");
+  try {
+    await addComment(newComment);
+    setCommentInput("");
+  } catch (error: unknown) {
+    console.error("Could not add post comment:", error);
+    setCommentError("We couldn't add your comment. Please try again.");
+  }
 }
 
   if (!post) {
@@ -207,6 +241,7 @@ export default function PostPage() {
       </div>
     )}
 
+    {user && profile ? (
     <div className="flex gap-2">
       <input
         type="text"
@@ -218,11 +253,25 @@ export default function PostPage() {
 
       <button
         onClick={handleSubmitComment}
+        disabled={!commentInput.trim()}
         className="rounded-lg bg-[#75558c] px-4 py-2 text-sm text-white transition hover:bg-[#59406f]"
       >
         Send
       </button>
     </div>
+    ) : (
+      <p className="text-sm text-[#827a89]">
+        <Link href="/login" className="text-[#75558c] hover:underline">
+          Log in
+        </Link>{" "}
+        to join the conversation.
+      </p>
+    )}
+    {commentError && (
+      <p role="alert" className="mt-2 text-sm text-red-600">
+        {commentError}
+      </p>
+    )}
   </div>
 )}
         </div>

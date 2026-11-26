@@ -13,11 +13,16 @@ function TagPageContent() {
   const [allPosts, setAllPosts] = useState<KindredPost[]>([]);
 
   useEffect(() => {
-    queueMicrotask(() => setAllPosts(getPosts()));
+    const refreshPosts = () => {
+      void getPosts()
+        .then(setAllPosts)
+        .catch((error: unknown) => {
+          console.error("Could not load Kindred posts:", error);
+        });
+    };
+    queueMicrotask(refreshPosts);
 
-    const unsubscribe = subscribeToPosts(() => {
-      setAllPosts(getPosts());
-    });
+    const unsubscribe = subscribeToPosts(refreshPosts);
 
     return unsubscribe;
   }, []);

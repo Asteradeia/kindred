@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import {
   getUserProfile,
@@ -12,6 +13,7 @@ import { getSafeInternalRedirect } from "@/app/data/authRedirect";
 import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +44,7 @@ export default function LoginPage() {
         ? requestedDestination
         : `/account/setup?redirect=${encodeURIComponent(requestedDestination)}`;
 
-    window.location.assign(destination);
+    router.replace(destination);
   } catch (error: unknown) {
     if (error instanceof Error && "code" in error) {
       const firebaseError = error as { code: string };
@@ -79,7 +81,7 @@ export default function LoginPage() {
           <div className="mb-8 text-center">
             <h1 className="font-serif text-3xl">Welcome back</h1>
             <p className="mt-2 text-sm text-[#827a89]">
-              It's lovely to have you here again.
+              It&apos;s lovely to have you here again.
             </p>
           </div>
 
@@ -133,7 +135,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-sm text-[#827a89]">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/register" className="font-medium text-[#75558c] hover:underline">
               Join Kindred
             </Link>

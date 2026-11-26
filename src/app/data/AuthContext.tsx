@@ -24,6 +24,7 @@ interface AuthContextType {
   profileError: string | null;
   emailVerified: boolean;
   refreshEmailVerification: () => Promise<boolean>;
+  refreshProfile: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -34,6 +35,7 @@ const AuthContext = createContext<AuthContextType>({
   profileError: null,
   emailVerified: false,
   refreshEmailVerification: async () => false,
+  refreshProfile: async () => null,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -54,6 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await reload(currentUser);
     setEmailVerified(currentUser.emailVerified);
     return currentUser.emailVerified;
+  }
+
+  async function refreshProfile(): Promise<UserProfile | null> {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setProfile(null);
+      return null;
+    }
+
+    const updatedProfile = await getUserProfile(currentUser.uid);
+    if (auth.currentUser?.uid === currentUser.uid) {
+      setProfile(updatedProfile);
+    }
+    return updatedProfile;
   }
 
   useEffect(() => {
@@ -107,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileError,
         emailVerified,
         refreshEmailVerification,
+        refreshProfile,
       }}
     >
       {children}

@@ -6,9 +6,16 @@ import { useEffect, useRef, useState } from "react";
 import {
   getPosts,
   addPost,
+  createPostId,
+  deletePost,
   subscribeToPosts,
+  updatePost,
 } from "@/app/lib/sharedPosts";
-import { getBookmarks, toggleBookmark } from "@/app/lib/bookmarks";
+import {
+  getBookmarks,
+  removeBookmark,
+  toggleBookmark,
+} from "@/app/lib/bookmarks";
 import {
   getLikedPosts,
   toggleLike as togglePostLike,
@@ -16,7 +23,6 @@ import {
 } from "@/app/lib/likes";
 import type { KindredPost } from "@/app/data/posts";
 import {
-  getCommentsForPost,
   getComments,
   addComment,
   subscribeToComments,
@@ -29,6 +35,13 @@ import {
   subscribeToFollows,
 } from "@/app/lib/follows";
 import { useAuth } from "@/app/data/AuthContext";
+import {
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadString,
+} from "firebase/storage";
+import { storage } from "@/lib/firebase";
 const suggestedCreators = [
   { name: "Moss & Moon", username: "@mossandmoon", letter: "M", color: "#e3eadc" },
   { name: "PaperCrow", username: "@papercrow", letter: "P", color: "#f0dfe8" },
@@ -52,6 +65,19 @@ export default function KindredHome() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [feedPosts, setFeedPosts] = useState<KindredPost[]>([]);
   const [postComments, setPostComments] = useState<KindredComment[]>([]);
+  const [publishError, setPublishError] = useState("");
+  const [commentError, setCommentError] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [openPostMenuId, setOpenPostMenuId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<KindredPost | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editError, setEditError] = useState("");
+  const [postActionError, setPostActionError] = useState("");
+  const [savingEditedPost, setSavingEditedPost] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<string[]>([]);
   const [activeFeed, setActiveFeed] = useState<"forYou" | "following">("forYou");
@@ -87,11 +113,16 @@ export default function KindredHome() {
   return unsubscribe;
 }, []);
 useEffect(() => {
-  queueMicrotask(() => setFeedPosts(getPosts()));
+  const refreshPosts = () => {
+    void getPosts()
+      .then(setFeedPosts)
+      .catch((error: unknown) => {
+        console.error("Could not load Kindred posts:", error);
+      });
+  };
+  queueMicrotask(refreshPosts);
 
-  const unsubscribe = subscribeToPosts(() => {
-    setFeedPosts(getPosts());
-  });
+  const unsubscribe = subscribeToPosts(refreshPosts);
 
   return unsubscribe;
 }, []);
@@ -105,44 +136,77 @@ useEffect(() => {
   return unsubscribe;
 }, []);
 useEffect(() => {
-  queueMicrotask(() => setPostComments(getComments()));
+  const refreshComments = () => {
+    void getComments()
+      .then(setPostComments)
+      .catch((error: unknown) => {
+        console.error("Could not load comments:", error);
+      });
+  };
+  queueMicrotask(refreshComments);
 
-  const unsubscribe = subscribeToComments(() => {
-    setPostComments(getComments());
-  });
+  const unsubscribe = subscribeToComments(refreshComments);
 
   return unsubscribe;
 }, []);
-function publishPost() {
-  if (!newPost.trim() && !imagePreview) return;
+async function publishPost() {
+  if (!user || !profile || (!newPost.trim() && !imagePreview)) return;
+  setPublishError("");
+  setPublishing(true);
 
   const tags = newTags
     .split(/[,\s]+/)
     .map((tag) => tag.replace(/^#/, "").trim())
     .filter(Boolean);
 
-  const post = {
-    id: Date.now().toString(),
-    creator: creatorName,
-    username: creatorUsername,
-    avatar: creatorAvatar,
-    avatarColor: "#e9e1f0",
-    content: newPost.trim(),
-    tags,
-    image: imagePreview ?? undefined,
-    time: "Just now",
-    likes: 0,
-    comments: 0,
-  };
+  let uploadedImageRef: ReturnType<typeof ref> | null = null;
+  try {
+    const id = createPostId();
+    let image: string | undefined;
+    if (imagePreview) {
+      uploadedImageRef = ref(storage, `users/${user.uid}/posts/${id}`);
+      const uploadedImage = await uploadString(
+        uploadedImageRef,
+        imagePreview,
+        "data_url",
+      );
+      image = await getDownloadURL(uploadedImage.ref);
+    }
 
-  const updatedPosts = addPost(post);
-  setFeedPosts(updatedPosts);
-  setNewPost("");
-  setNewTags("");
-  setShowTags(false);
-  setImagePreview(null);
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
+    await addPost({
+      id,
+      authorUid: user.uid,
+      creator: profile.displayName,
+      username: profile.username,
+      avatar: profile.displayName.trim().charAt(0).toUpperCase() || "K",
+      avatarColor: "#e9e1f0",
+      content: newPost.trim(),
+      tags,
+      image,
+      time: "Just now",
+      likes: 0,
+      comments: 0,
+    });
+    setFeedPosts(await getPosts());
+    setNewPost("");
+    setNewTags("");
+    setShowTags(false);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  } catch (error: unknown) {
+    console.error("Could not publish post:", error);
+    if (uploadedImageRef) {
+      try {
+        await deleteObject(uploadedImageRef);
+      } catch (cleanupError: unknown) {
+        console.error("Could not remove the failed post image upload:", cleanupError);
+      }
+    }
+    setPublishError("We couldn't publish your post. Please try again.");
+  } finally {
+    setPublishing(false);
   }
 }
 
@@ -170,6 +234,163 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
   reader.readAsDataURL(file);
 }
+  function beginEditingPost(post: KindredPost) {
+    setEditingPost(post);
+    setEditContent(post.content);
+    setEditTags(post.tags.join(", "));
+    setEditImagePreview(post.image ?? null);
+    setEditError("");
+    setOpenPostMenuId(null);
+    if (editFileInputRef.current) {
+      editFileInputRef.current.value = "";
+    }
+  }
+  function handleEditImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setEditError("Please select an image.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setEditError("Image must be smaller than 5MB.");
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setEditImagePreview(reader.result);
+        setEditError("");
+      } else {
+        setEditError("We couldn't read that image. Please try another file.");
+      }
+    };
+    reader.onerror = () => {
+      console.error("Could not read the edited post image:", reader.error);
+      setEditError("We couldn't read that image. Please try another file.");
+    };
+    reader.readAsDataURL(file);
+  }
+  async function handleSavePostEdit() {
+    if (!user || !profile || !editingPost || editingPost.authorUid !== user.uid) {
+      return;
+    }
+    if (!editContent.trim() && !editImagePreview) {
+      setEditError("Add some text or a photo before saving.");
+      return;
+    }
+
+    setSavingEditedPost(true);
+    setEditError("");
+    setPostActionError("");
+    let uploadedImageRef: ReturnType<typeof ref> | null = null;
+    let image = editingPost.image;
+    const tags = editTags
+      .split(/[,\s]+/)
+      .map((tag) => tag.replace(/^#/, "").trim())
+      .filter(Boolean);
+
+    try {
+      if (editImagePreview && editImagePreview !== editingPost.image) {
+        uploadedImageRef = ref(
+          storage,
+          `users/${user.uid}/posts/${editingPost.id}-${createPostId()}`,
+        );
+        const uploadedImage = await uploadString(
+          uploadedImageRef,
+          editImagePreview,
+          "data_url",
+        );
+        image = await getDownloadURL(uploadedImage.ref);
+      } else if (!editImagePreview) {
+        image = undefined;
+      }
+
+      await updatePost(editingPost.id, user.uid, {
+        content: editContent.trim(),
+        tags,
+        image,
+      });
+    } catch (error: unknown) {
+      console.error("Could not update post:", error);
+      if (uploadedImageRef) {
+        try {
+          await deleteObject(uploadedImageRef);
+        } catch (cleanupError: unknown) {
+          console.error("Could not remove the failed edited-image upload:", cleanupError);
+        }
+      }
+      setEditError("We couldn't save your changes. Please try again.");
+      setSavingEditedPost(false);
+      return;
+    }
+
+    const updatedImage = image;
+    setFeedPosts((previousPosts) =>
+      previousPosts.map((post) =>
+        post.id === editingPost.id
+          ? {
+              ...post,
+              content: editContent.trim(),
+              tags,
+              image: updatedImage,
+            }
+          : post,
+      ),
+    );
+    setEditingPost(null);
+    setSavingEditedPost(false);
+
+    if (editingPost.image && editingPost.image !== updatedImage) {
+      try {
+        await deleteObject(ref(storage, editingPost.image));
+      } catch (error: unknown) {
+        console.error("Post was updated, but its old image could not be removed:", error);
+        setPostActionError(
+          "Your post was updated, but its previous photo couldn't be removed.",
+        );
+      }
+    }
+  }
+  async function handleDeletePost(post: KindredPost) {
+    if (!user || post.authorUid !== user.uid) return;
+    if (!window.confirm("Delete this post? This can't be undone.")) return;
+
+    const postId = String(post.id);
+    setOpenPostMenuId(null);
+    setPostActionError("");
+    setDeletingPostId(postId);
+
+    try {
+      await deletePost(postId, user.uid);
+    } catch (error: unknown) {
+      console.error("Could not delete post:", error);
+      setPostActionError("We couldn't delete your post. Please try again.");
+      setDeletingPostId(null);
+      return;
+    }
+
+    setFeedPosts((previousPosts) =>
+      previousPosts.filter((feedPost) => String(feedPost.id) !== postId),
+    );
+    removeBookmark(postId);
+    setDeletingPostId(null);
+
+    if (post.image) {
+      try {
+        await deleteObject(ref(storage, post.image));
+      } catch (error: unknown) {
+        console.error("Post was deleted, but its image could not be removed:", error);
+        setPostActionError(
+          "Your post was deleted, but its photo couldn't be removed from storage.",
+        );
+      }
+    }
+  }
   function handleToggleLike(post: KindredPost) {
     setLikedPostIds(togglePostLike(String(post.id)));
   }
@@ -181,27 +402,36 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
   );
 }
 function toggleComments(postId: string) {
+  setCommentError("");
   setExpandedComments((previous) =>
     previous.includes(postId)
       ? previous.filter((id) => id !== postId)
       : [...previous, postId]
   );
 }
-function handleSubmitComment(postId: string) {
+async function handleSubmitComment(postId: string) {
+  if (!user || !profile) return;
   const content = commentInputs[postId]?.trim();
   if (!content) return;
 
   const newComment: KindredComment = {
-    id: Date.now().toString(),
+    id: "",
     postId,
-    username: creatorUsername,
-    displayName: creatorName,
-    avatar: creatorAvatar,
+    authorUid: user.uid,
+    username: profile.username,
+    displayName: profile.displayName,
+    avatar: profile.displayName.trim().charAt(0).toUpperCase() || "K",
     content,
-    createdAt: new Date().toISOString(),
+    createdAt: "",
   };
-  setPostComments(addComment(newComment));
-  setCommentInputs((previous) => ({ ...previous, [postId]: "" }));
+  setCommentError("");
+  try {
+    await addComment(newComment);
+    setCommentInputs((previous) => ({ ...previous, [postId]: "" }));
+  } catch (error: unknown) {
+    console.error("Could not add comment:", error);
+    setCommentError("We couldn't add your comment. Please try again.");
+  }
 }
 async function handleShare(postId: string) {
   const success = await sharePost(postId);
@@ -364,13 +594,18 @@ function toggleFollow(username: string) {
                     </button>
                   </div>
                   <button
-                    disabled={!newPost.trim() && !imagePreview}
+                    disabled={publishing || (!newPost.trim() && !imagePreview)}
                     onClick={publishPost}
                     className="rounded-full bg-[#75558c] px-5 py-2 text-sm text-white transition hover:bg-[#59406f] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Post
+                    {publishing ? "Publishing..." : "Post"}
                   </button>
                 </div>
+                {publishError && (
+                  <p role="alert" className="mt-3 text-sm text-red-600">
+                    {publishError}
+                  </p>
+                )}
               </>
             ) : user ? (
               <>
@@ -418,6 +653,11 @@ function toggleFollow(username: string) {
               </button>
             ))}
           </div>
+          {postActionError && (
+            <p role="alert" className="mb-4 text-sm text-red-600">
+              {postActionError}
+            </p>
+          )}
           {/* Posts */}
 <div className="space-y-5">
   {activeFeed === "following" && displayedPosts.length === 0 ? (
@@ -472,7 +712,52 @@ function toggleFollow(username: string) {
                       </p>
                     </div>
                   </div>
-                  <button aria-label="Post options" className="text-xl text-[#827a89]">···</button>
+                  {user && post.authorUid === user.uid && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        aria-label={`Post options for ${post.creator}`}
+                        aria-expanded={openPostMenuId === String(post.id)}
+                        aria-controls={`post-actions-${post.id}`}
+                        onClick={() =>
+                          setOpenPostMenuId((openId) =>
+                            openId === String(post.id) ? null : String(post.id),
+                          )
+                        }
+                        className="rounded-full px-2 py-1 text-xl leading-none text-[#827a89] transition hover:bg-[#f3eef6] hover:text-[#75558c]"
+                      >
+                        ···
+                      </button>
+                      {openPostMenuId === String(post.id) && (
+                        <div
+                          id={`post-actions-${post.id}`}
+                          role="menu"
+                          aria-label={`Actions for ${post.creator}'s post`}
+                          className="absolute right-0 top-10 z-20 w-40 rounded-xl border border-[#e9e3eb] bg-white p-1.5 shadow-lg"
+                        >
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => beginEditingPost(post)}
+                            className="w-full rounded-lg px-3 py-2 text-left text-sm text-[#62596b] transition hover:bg-[#f3eef6] hover:text-[#75558c]"
+                          >
+                            Edit post
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            disabled={deletingPostId === String(post.id)}
+                            onClick={() => void handleDeletePost(post)}
+                            className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {deletingPostId === String(post.id)
+                              ? "Deleting..."
+                              : "Delete post"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="px-5 pb-4">
@@ -572,27 +857,40 @@ function toggleFollow(username: string) {
                     )}
                   </div>
 
-                  <div className="mt-4 flex gap-2">
-                    <input
-                      value={commentInputs[String(post.id)] ?? ""}
-                      onChange={(e) =>
-                        setCommentInputs((previous) => ({
-                          ...previous,
-                          [String(post.id)]: e.target.value,
-                        }))
-                      }
-                      placeholder="Write a comment..."
-                      className="min-w-0 flex-1 rounded-full border border-[#e9e3eb] bg-[#faf8f5] px-4 py-2 text-sm outline-none focus:border-[#b69ac8]"
-                    />
-
-                    <button
-                      onClick={() => handleSubmitComment(String(post.id))}
-                      disabled={!commentInputs[String(post.id)]?.trim()}
-                      className="rounded-full bg-[#75558c] px-4 py-2 text-sm text-white hover:bg-[#59406f] disabled:opacity-40"
-                    >
-                      Send
-                    </button>
-                  </div>
+                  {user && profile ? (
+                    <div className="mt-4 flex gap-2">
+                      <input
+                        value={commentInputs[String(post.id)] ?? ""}
+                        onChange={(e) =>
+                          setCommentInputs((previous) => ({
+                            ...previous,
+                            [String(post.id)]: e.target.value,
+                          }))
+                        }
+                        placeholder="Write a comment..."
+                        className="min-w-0 flex-1 rounded-full border border-[#e9e3eb] bg-[#faf8f5] px-4 py-2 text-sm outline-none focus:border-[#b69ac8]"
+                      />
+                      <button
+                        onClick={() => void handleSubmitComment(String(post.id))}
+                        disabled={!commentInputs[String(post.id)]?.trim()}
+                        className="rounded-full bg-[#75558c] px-4 py-2 text-sm text-white hover:bg-[#59406f] disabled:opacity-40"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-[#827a89]">
+                      <Link href="/login" className="text-[#75558c] hover:underline">
+                        Log in
+                      </Link>{" "}
+                      to join the conversation.
+                    </p>
+                  )}
+                  {commentError && (
+                    <p role="alert" className="mt-2 text-sm text-red-600">
+                      {commentError}
+                    </p>
+                  )}
                 </div>
               )}
               </article>
@@ -688,6 +986,136 @@ function toggleFollow(username: string) {
           </div>
         </aside>
       </div>
+      {editingPost && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !savingEditedPost) {
+              setEditingPost(null);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-post-title"
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="edit-post-title" className="font-serif text-2xl">
+                  Edit your post
+                </h2>
+                <p className="mt-1 text-sm text-[#827a89]">
+                  Update your words, tags, or photo.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close edit post"
+                disabled={savingEditedPost}
+                onClick={() => setEditingPost(null)}
+                className="rounded-full px-3 py-1 text-xl text-[#827a89] hover:bg-[#f3eef6] disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+            <label
+              htmlFor="edit-post-content"
+              className="mt-5 block text-sm font-medium text-[#62596b]"
+            >
+              Post
+            </label>
+            <textarea
+              id="edit-post-content"
+              value={editContent}
+              onChange={(event) => setEditContent(event.target.value)}
+              rows={5}
+              maxLength={5000}
+              className="mt-2 w-full resize-y rounded-2xl border border-[#e9e3eb] bg-[#faf8f5] p-4 text-sm leading-6 outline-none focus:border-[#b69ac8]"
+            />
+            <label
+              htmlFor="edit-post-tags"
+              className="mt-4 block text-sm font-medium text-[#62596b]"
+            >
+              Tags
+            </label>
+            <input
+              id="edit-post-tags"
+              value={editTags}
+              onChange={(event) => setEditTags(event.target.value)}
+              placeholder="fantasy, art, wip"
+              className="mt-2 w-full rounded-xl border border-[#e9e3eb] bg-[#faf8f5] px-4 py-3 text-sm outline-none focus:border-[#b69ac8]"
+            />
+            <div className="mt-4">
+              {editImagePreview && (
+                <div className="relative mb-3 overflow-hidden rounded-2xl bg-[#faf8f5]">
+                  <img
+                    src={editImagePreview}
+                    alt="Edited post preview"
+                    className="max-h-72 w-full object-contain"
+                  />
+                </div>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => editFileInputRef.current?.click()}
+                  className="rounded-full border border-[#dcd2e2] px-4 py-2 text-sm text-[#75558c] transition hover:bg-[#f3eef6]"
+                >
+                  {editImagePreview ? "Change photo" : "Add photo"}
+                </button>
+                {editImagePreview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditImagePreview(null);
+                      if (editFileInputRef.current) {
+                        editFileInputRef.current.value = "";
+                      }
+                    }}
+                    className="rounded-full px-4 py-2 text-sm text-[#827a89] transition hover:bg-[#f3eef6]"
+                  >
+                    Remove photo
+                  </button>
+                )}
+                <input
+                  ref={editFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleEditImageUpload}
+                />
+              </div>
+            </div>
+            {editError && (
+              <p role="alert" className="mt-3 text-sm text-red-600">
+                {editError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={savingEditedPost}
+                onClick={() => setEditingPost(null)}
+                className="rounded-full px-5 py-2.5 text-sm text-[#827a89] transition hover:bg-[#f3eef6] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  savingEditedPost || (!editContent.trim() && !editImagePreview)
+                }
+                onClick={() => void handleSavePostEdit()}
+                className="rounded-full bg-[#75558c] px-5 py-2.5 text-sm text-white transition hover:bg-[#59406f] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {savingEditedPost ? "Saving..." : "Save changes"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
